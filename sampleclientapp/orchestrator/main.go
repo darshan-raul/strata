@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -73,7 +74,7 @@ func createJob(c *fiber.Ctx) error {
 	}
 
 	// Publish to NATS
-	err = nc.Publish("job.created", []byte(string(id)))
+	err = nc.Publish("job.created", []byte(strconv.Itoa(id)))
 	if err != nil {
 		log.Printf("NATS error: %v", err)
 	}

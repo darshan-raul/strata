@@ -1,8 +1,16 @@
 version: '3.8'
 
+networks:
+  sampleapp-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+
 services:
   postgres:
     image: postgres:15-alpine
+    restart: always
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -10,7 +18,10 @@ services:
     ports:
       - "5432:5432"
     volumes:
+      - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - sampleapp-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d sampleapp"]
       interval: 5s
@@ -19,58 +30,138 @@ services:
 
   nats:
     image: nats:latest
+    restart: always
+    command: ["-m", "8222"]
     ports:
       - "4222:4222"
+    networks:
+      - sampleapp-net
+
 
   orchestrator:
     build:
       context: ./orchestrator
+    restart: on-failure
     ports:
       - "8080:8080"
     environment:
       - DATABASE_URL=postgres://user:password@postgres:5432/sampleapp?sslmode=disable
       - NATS_URL=nats://nats:4222
       - PORT=8080
+    networks:
+      - sampleapp-net
     depends_on:
       postgres:
         condition: service_healthy
       nats:
         condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    develop:
+      watch:
+        - action: rebuild
+          path: ./orchestrator/
 
   worker:
     build:
       context: ./worker
+    restart: on-failure
     environment:
       - DATABASE_URL=postgres://user:password@postgres:5432/sampleapp?sslmode=disable
       - NATS_URL=nats://nats:4222
+    networks:
+      - sampleapp-net
     depends_on:
       postgres:
         condition: service_healthy
       nats:
         condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    develop:
+      watch:
+        - action: rebuild
+          path: ./worker/
 
   notification:
     build:
       context: ./notification
+    restart: on-failure
     environment:
       - NATS_URL=nats://nats:4222
+    networks:
+      - sampleapp-net
     depends_on:
       nats:
         condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+    develop:
+      watch:
+        - action: rebuild
+          path: ./notification/
 
   verifier:
     build:
       context: ./verifier
+    restart: on-failure
     environment:
       - DATABASE_URL=postgres://user:password@postgres:5432/sampleapp
+    networks:
+      - sampleapp-net
     depends_on:
       postgres:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+    develop:
+      watch:
+        - action: rebuild
+          path: ./verifier/
 
   frontend:
     build:
       context: ./frontend
+      target: builder
+    command: npm run dev
+    restart: on-failure
     ports:
-      - "3000:80"
+      - "3000:3000"
+    networks:
+      - sampleapp-net
     depends_on:
       - orchestrator
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend/src
+          target: /app/src
+        - action: rebuild
+          path: ./frontend/package.json
+
+  dozzle:
+    image: amir20/dozzle:latest
+    restart: always
+    ports:
+      - "8081:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - sampleapp-net
