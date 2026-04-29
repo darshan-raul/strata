@@ -1,0 +1,306 @@
+networks:
+  accio-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  authentik_media:
+  authentik_templates:
+
+x-service-defaults: &service-defaults
+  restart: on-failure
+  networks:
+    - accio-net
+  deploy:
+    resources:
+      limits:
+        cpus: '0.5'
+        memory: 256M
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: accio
+      POSTGRES_PASSWORD: accio_password
+      POSTGRES_DB: accio
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./services/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - accio-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U accio"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - accio-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  nats:
+    image: nats:2.10-alpine
+    command: "-js"
+    restart: always
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    networks:
+      - accio-net
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2026.2.2
+    restart: always
+    command: server
+    environment:
+      AUTHENTIK_SECRET_KEY: accio-local-dev-insecure-key-change-me
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__USER: accio
+      AUTHENTIK_POSTGRESQL__PASSWORD: accio_password
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_BOOTSTRAP_PASSWORD: password
+      AUTHENTIK_BOOTSTRAP_EMAIL: admin@accio.dev
+    ports:
+      - "9000:9000"
+    volumes:
+      - authentik_media:/media
+      - authentik_templates:/templates
+      - ./blueprints:/blueprints
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - accio-net
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2026.2.2
+    restart: always
+    command: worker
+    environment:
+      AUTHENTIK_SECRET_KEY: accio-local-dev-insecure-key-change-me
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__USER: accio
+      AUTHENTIK_POSTGRESQL__PASSWORD: accio_password
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./blueprints:/blueprints
+    networks:
+      - accio-net
+
+  dozzle:
+    image: amir20/dozzle:latest
+    restart: always
+    ports:
+      - "8081:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - accio-net
+
+  deployment-api:
+    <<: *service-defaults
+    build:
+      context: ./services/deployment-api
+    ports:
+      - "8080:8080"
+    environment:
+      - NATS_URL=nats://nats:4222
+      - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
+    depends_on:
+      nats:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: rebuild
+          path: ./services/deployment-api/
+
+  auth-service:
+    <<: *service-defaults
+    build:
+      context: ./services/auth-service
+    ports:
+      - "8085:8085"
+    environment:
+      - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
+      - JWT_SECRET=local-dev-secret
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  approval-engine:
+    <<: *service-defaults
+    build:
+      context: ./services/approval-engine
+    environment:
+      - NATS_URL=nats://nats:4222
+      - POLICY_ENGINE_URL=http://policy-engine:8181
+    depends_on:
+      nats:
+        condition: service_started
+      policy-engine:
+        condition: service_started
+    develop:
+      watch:
+        - action: rebuild
+          path: ./services/approval-engine/
+
+  rollout-planner:
+    <<: *service-defaults
+    build:
+      context: ./services/rollout-planner
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_started
+
+  rollback-engine:
+    <<: *service-defaults
+    build:
+      context: ./services/rollback-engine
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_started
+
+  eks-executor:
+    <<: *service-defaults
+    build:
+      context: ./services/eks-executor
+    environment:
+      - NATS_URL=nats://nats:4222
+      - CLOUD_PROVIDER=aws
+    depends_on:
+      nats:
+        condition: service_started
+    develop:
+      watch:
+        - action: rebuild
+          path: ./services/eks-executor/
+
+  gke-executor:
+    <<: *service-defaults
+    build:
+      context: ./services/gke-executor
+    environment:
+      - NATS_URL=nats://nats:4222
+      - CLOUD_PROVIDER=gcp
+    depends_on:
+      nats:
+        condition: service_started
+
+  health-checker:
+    <<: *service-defaults
+    build:
+      context: ./services/health-checker
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_started
+
+  audit-logger:
+    <<: *service-defaults
+    build:
+      context: ./services/audit-logger
+    environment:
+      - NATS_URL=nats://nats:4222
+      - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
+    depends_on:
+      nats:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+
+  policy-engine:
+    <<: *service-defaults
+    build:
+      context: ./services/policy-engine
+    ports:
+      - "8181:8181"
+    environment:
+      - REGO_PATH=/policies
+    volumes:
+      - ./policies:/policies
+
+  environment-api:
+    <<: *service-defaults
+    build:
+      context: ./services/environment-api
+    ports:
+      - "8082:8082"
+    environment:
+      - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  metrics-service:
+    <<: *service-defaults
+    build:
+      context: ./services/metrics-service
+    ports:
+      - "8083:8083"
+    environment:
+      - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  diff-service:
+    <<: *service-defaults
+    build:
+      context: ./services/diff-service
+    ports:
+      - "8084:8084"
+
+  notifier:
+    <<: *service-defaults
+    build:
+      context: ./services/notifier
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_started
+
+  portal-ui:
+    <<: *service-defaults
+    build:
+      context: ./services/portal-ui
+    ports:
+      - "3000:3000"
+    depends_on:
+      - authentik-server
+    environment:
+      - VITE_API_URL=http://localhost:8080
+      - VITE_ENV_API_URL=http://localhost:8082
+      - VITE_OIDC_AUTHORITY=http://localhost:3000/application/o/accio-portal/
+      - VITE_OIDC_CLIENT_ID=accio-portal
+      - VITE_OIDC_REDIRECT_URI=http://localhost:3000/callback
+    develop:
+      watch:
+        - action: sync
+          path: ./services/portal-ui/src
+          target: /app/src
+        - action: rebuild
+          path: ./services/portal-ui/package.json

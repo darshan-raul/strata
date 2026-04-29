@@ -1,0 +1,38 @@
+version: 1
+entries:
+  - model: authentik_flows.flow
+    id: auth-flow
+    identifiers:
+      slug: default-provider-authorization-implicit-consent
+    attrs:
+      name: Authorize Application
+      designation: authorization
+
+  - model: authentik_flows.flow
+    id: inv-flow
+    identifiers:
+      slug: default-invalidation-flow
+    attrs:
+      name: Invalidate Session
+      designation: invalidation
+
+  - model: authentik_providers_oauth2.oauth2provider
+    id: accio-portal-provider
+    identifiers:
+      name: Accio Portal Provider
+    attrs:
+      client_id: accio-portal
+      client_secret: accio-portal-secret
+      authorization_flow: !KeyOf auth-flow
+      invalidation_flow: !KeyOf inv-flow
+      redirect_uris:
+        - matching_mode: strict
+          url: http://localhost:3000/callback
+
+  - model: authentik_core.application
+    id: accio-portal-app
+    identifiers:
+      slug: accio-portal
+    attrs:
+      name: Accio Portal
+      provider: !KeyOf accio-portal-provider
