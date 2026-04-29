@@ -1,0 +1,93 @@
+theme: light
+default_2fa_method: totp
+
+log:
+  level: debug
+
+server:
+  address: tcp://0.0.0.0:9091/
+
+authentication_backend:
+  file:
+    path: /config/users.yml
+
+session:
+  name: authelia_session
+  secret: acciodevsecret
+  expiration: 3600
+  inactivity: 300
+  domain: accio.localhost
+
+storage:
+  encryption_key: acciodevsecretacciodevsecret1234
+  local:
+    path: /config/db.sqlite3
+
+notifier:
+  disable_startup_check: true
+  filesystem:
+    filename: /config/emails.txt
+
+access_control:
+  default_policy: one_factor
+
+identity_validation:
+  reset_password:
+    jwt_secret: acciodevsecret
+
+identity_providers:
+  oidc:
+    hmac_secret: acciodevsecretacciodevsecret1234
+    jwks:
+      - key: |
+          -----BEGIN PRIVATE KEY-----
+          MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC8KEZKPS0zVmC9
+          7jiPOjEgkbpGjil7Zu5Mc5zMbKw3Nc+VBI0VOGo7G6jLHEy5qf4SzJaAvekpNaT/
+          CgmjJX+FtrJrE9pv2npZMgENuRgdzcMe31f/w8dwzGcI+eH/FwOkPfwDV4NBwRMe
+          4nz1wnZOXDStsrYcS9iaU/vupoUEDwUfYcitTwsxtcTm5touWtU8VgNHTx1zM8or
+          xbV/kc9180d5wXq90rp0VXhqUc+DtD6uHGRceNi4ellgG2jVzh+2rJCk4yG4vabu
+          UzfuHXEVoh4Txcl/hlXyZu06NLgOww6gH6rAXYrhrSFJcc/6kc+vm+rCAoZQt1iT
+          EzSNycjpAgMBAAECggEAHmU3LakCU0fB6wy/sEuLQiKof9tZUikHl+wZSWDI1UZp
+          GT6Z9/KcHp5SPzV8I4YVmD3alkOXleOnmtepROS63APugKO9ZtJZb21HhEsBXVcv
+          DR6xXYzn/A3ZGzcazhWOrgqhWnzZpFanWxblbuISMIhurhyvlJSgEhY9HYli9Yuc
+          tCwJ32N7I9/d4aoQJJhDUBv39wVHuZ5mSI5UHmS9F+5pMyzwEhI70Nmaw1G4q4PT
+          WLcIMwBanWiKcUUHBfxrvUeIFvFbNKNr8nVuVMbtXXR2RXqIpZzYYiuUIcbC1cAH
+          u4YTfiv9BoAkkoVJP6pagPfjlAiVKe6yflEM24WWLQKBgQDcq2JA153QGTCxJqe1
+          xrMuOPs90qwydIbOoGmZ1qTyaXCzD8/eFwEHFZC9XYcKNvbzjxFHqNMlSzfWPVCC
+          vySCcM/gejbV0mZHC468T67WMiCVSTNYMzygNmYBy9XLy1HRVOug+/haYR2iumny
+          93hg/CxBNvMICz08yOOxOkVsUwKBgQDaSE9ftXN194mOdGS5OHf+onTDf0tLKdv3
+          xfVx8WXgJucxKZiMf7AFEwyCDuJSp2FpF5YtQ8ARKBNKiKFAsWIq1Vfa7kJVYPIq
+          Ip6McYvuww9P0r/yii2pFmpvvSEs0DNsEeAt73MEGEP6AkEze6xl5DLue+U4hafZ
+          Ez8IYNRuUwKBgEXL65ro2CCvJwiRWnCTda9EFKucTBz1YIJQmLYw/yExmpT4hl4P
+          1qJf/tT2lTT0561n7iZFTuu32+RmpmWEgc7EUewFm/yLvQ/xpucHKRzU5Btz+MqI
+          AkAGlMMyrt/z4mAcxR65M/eaSh5jagmQnsHGYVULRVmg/HCSdfpjnPvDAoGBAKK7
+          xAkrgr/Q4wmENs9rjPIWdYyGK0EHHQn02I6xFG1vM28Qfr1IOJcf43RW2l4akWHD
+          BuAKIXfo87DeebF8TR533T7H4EY8t224T5GO2W8QlyrAiP+uCmqD3qgdTU1Wju+j
+          yAkW+h10ZcFOywMx0Y5I+buYPITOCBuq4JRDdDwnAoGAEF1F/sB+3tOV0/IJkWCd
+          X/ZRyEu392SlIgV8eTvYmcyod4dyE85At3BIbnnoN4mPv2EoEvEh/QkHo7gZ/Bqd
+          lW0jA/4NrCWygwygeM3DfhoIwWYwk2RxIFgRSUjjRgiwqBnIX5s2Jica2Zg/LMg8
+          dXe2NUUsLQn8AxryDhKmt4s=
+          -----END PRIVATE KEY-----
+    cors:
+      endpoints:
+        - authorization
+        - token
+        - revocation
+        - introspection
+        - userinfo
+      allowed_origins:
+        - http://accio.localhost:3000
+      allowed_origins_from_client_redirect_uris: true
+    clients:
+      - client_id: accio-portal
+        client_name: Accio Portal
+        public: true
+        authorization_policy: one_factor
+        redirect_uris:
+          - http://accio.localhost:3000/callback
+        scopes:
+          - openid
+          - profile
+          - email
+        userinfo_signed_response_alg: none
+        token_endpoint_auth_method: none

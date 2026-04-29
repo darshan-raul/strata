@@ -4,8 +4,6 @@ networks:
 
 volumes:
   postgres_data:
-  authentik_media:
-  authentik_templates:
 
 x-service-defaults: &service-defaults
   restart: on-failure
@@ -61,45 +59,13 @@ services:
     networks:
       - accio-net
 
-  authentik-server:
-    image: ghcr.io/goauthentik/server:2026.2.2
+  authelia:
+    image: authelia/authelia:4.38
     restart: always
-    command: server
-    environment:
-      AUTHENTIK_SECRET_KEY: accio-local-dev-insecure-key-change-me
-      AUTHENTIK_POSTGRESQL__HOST: postgres
-      AUTHENTIK_POSTGRESQL__USER: accio
-      AUTHENTIK_POSTGRESQL__PASSWORD: accio_password
-      AUTHENTIK_POSTGRESQL__NAME: authentik
-      AUTHENTIK_BOOTSTRAP_PASSWORD: password
-      AUTHENTIK_BOOTSTRAP_EMAIL: admin@accio.dev
+    volumes:
+      - ./authelia:/config
     ports:
-      - "9000:9000"
-    volumes:
-      - authentik_media:/media
-      - authentik_templates:/templates
-      - ./blueprints:/blueprints
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - accio-net
-
-  authentik-worker:
-    image: ghcr.io/goauthentik/server:2026.2.2
-    restart: always
-    command: worker
-    environment:
-      AUTHENTIK_SECRET_KEY: accio-local-dev-insecure-key-change-me
-      AUTHENTIK_POSTGRESQL__HOST: postgres
-      AUTHENTIK_POSTGRESQL__USER: accio
-      AUTHENTIK_POSTGRESQL__PASSWORD: accio_password
-      AUTHENTIK_POSTGRESQL__NAME: authentik
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - ./blueprints:/blueprints
+      - "9091:9091"
     networks:
       - accio-net
 
@@ -290,13 +256,13 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - authentik-server
+      - authelia
     environment:
-      - VITE_API_URL=http://localhost:8080
-      - VITE_ENV_API_URL=http://localhost:8082
-      - VITE_OIDC_AUTHORITY=http://localhost:3000/application/o/accio-portal/
+      - VITE_API_URL=http://accio.localhost:8080
+      - VITE_ENV_API_URL=http://accio.localhost:8082
+      - VITE_OIDC_AUTHORITY=http://accio.localhost:9091
       - VITE_OIDC_CLIENT_ID=accio-portal
-      - VITE_OIDC_REDIRECT_URI=http://localhost:3000/callback
+      - VITE_OIDC_REDIRECT_URI=http://accio.localhost:3000/callback
     develop:
       watch:
         - action: sync

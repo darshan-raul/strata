@@ -30,7 +30,7 @@ export default function LoginPage() {
           Sign in with SSO
         </button>
 
-        <div className="login-divider">secured by dex</div>
+        <div className="login-divider">secured by Authelia</div>
 
         <div className="login-features">
           <div className="login-feature">
