@@ -1,18 +1,9 @@
 go 1.22.0
 
 use (
-	./services/approval-engine
-	./services/audit-logger
-	./services/auth-service
-	./services/deployment-api
-	./services/diff-service
-	./services/eks-executor
-	./services/environment-api
-	./services/gke-executor
-	./services/health-checker
-	./services/metrics-service
-	./services/policy-engine
-	./services/rollback-engine
-	./services/rollout-planner
-	./services/shared
+	./services/catalog-service
+	./services/provisioner-service
+	./services/scorecard-service
+	./services/workflow-engine
+	./services/audit-service
 )

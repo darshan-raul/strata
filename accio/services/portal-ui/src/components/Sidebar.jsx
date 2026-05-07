@@ -2,10 +2,24 @@ import React from 'react'
 import { useAuth } from 'react-oidc-context'
 import { NavLink } from 'react-router-dom'
 
+const NAV = [
+  { section: 'Overview', links: [
+    { to: '/', label: 'Dashboard', icon: '📊', end: true },
+  ]},
+  { section: 'Platform', links: [
+    { to: '/catalog',     label: 'Service Catalog',  icon: '📦' },
+    { to: '/scorecards',  label: 'Scorecards',        icon: '🏆' },
+  ]},
+  { section: 'Operations', links: [
+    { to: '/provisioner', label: 'Provisioner',       icon: '⚙️' },
+    { to: '/workflows',   label: 'Workflows',         icon: '🔄' },
+    { to: '/audit',       label: 'Audit Log',         icon: '🔍' },
+  ]},
+]
+
 export default function Sidebar() {
   const auth = useAuth()
   const user = auth.user?.profile
-
   const displayName = user?.name || user?.preferred_username || user?.email || 'User'
   const initials = displayName.charAt(0).toUpperCase()
 
@@ -18,25 +32,29 @@ export default function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-brand">
         <div className="sidebar-brand-icon">⚡</div>
-        <h2>Accio</h2>
+        <div>
+          <h2>Accio</h2>
+          <span className="sidebar-brand-sub">IDP Platform</span>
+        </div>
       </div>
 
       <nav className="sidebar-nav">
-        <span className="sidebar-section-label">Overview</span>
-        <NavLink to="/" end className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-          <span className="sidebar-link-icon">📊</span>
-          Dashboard
-        </NavLink>
-
-        <span className="sidebar-section-label">Deployment</span>
-        <NavLink to="/deployments" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-          <span className="sidebar-link-icon">🚀</span>
-          Deployments
-        </NavLink>
-        <NavLink to="/environments" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-          <span className="sidebar-link-icon">🌐</span>
-          Environments
-        </NavLink>
+        {NAV.map(group => (
+          <React.Fragment key={group.section}>
+            <span className="sidebar-section-label">{group.section}</span>
+            {group.links.map(link => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.end}
+                className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+              >
+                <span className="sidebar-link-icon">{link.icon}</span>
+                {link.label}
+              </NavLink>
+            ))}
+          </React.Fragment>
+        ))}
       </nav>
 
       <div className="sidebar-footer">

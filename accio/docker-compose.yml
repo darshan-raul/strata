@@ -5,7 +5,7 @@ networks:
 volumes:
   postgres_data:
 
-x-service-defaults: &service-defaults
+x-go-service: &go-service
   restart: on-failure
   networks:
     - accio-net
@@ -16,6 +16,9 @@ x-service-defaults: &service-defaults
         memory: 256M
 
 services:
+
+  # ── Infrastructure ────────────────────────────────────────────
+
   postgres:
     image: postgres:15-alpine
     restart: always
@@ -34,7 +37,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U accio"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   redis:
     image: redis:7-alpine
@@ -69,188 +72,115 @@ services:
     networks:
       - accio-net
 
-  dozzle:
-    image: amir20/dozzle:latest
-    restart: always
-    ports:
-      - "8081:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - accio-net
+  # ── Custom Microservices ──────────────────────────────────────
 
-  deployment-api:
-    <<: *service-defaults
+  catalog-service:
+    <<: *go-service
     build:
-      context: ./services/deployment-api
+      context: ./services/catalog-service
     ports:
-      - "8080:8080"
+      - "8081:8081"
     environment:
+      - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
       - NATS_URL=nats://nats:4222
-      - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
-    depends_on:
-      nats:
-        condition: service_started
-      postgres:
-        condition: service_healthy
-    develop:
-      watch:
-        - action: rebuild
-          path: ./services/deployment-api/
-
-  auth-service:
-    <<: *service-defaults
-    build:
-      context: ./services/auth-service
-    ports:
-      - "8085:8085"
-    environment:
-      - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
-      - JWT_SECRET=local-dev-secret
+      - PORT=8081
     depends_on:
       postgres:
         condition: service_healthy
-
-  approval-engine:
-    <<: *service-defaults
-    build:
-      context: ./services/approval-engine
-    environment:
-      - NATS_URL=nats://nats:4222
-      - POLICY_ENGINE_URL=http://policy-engine:8181
-    depends_on:
-      nats:
-        condition: service_started
-      policy-engine:
-        condition: service_started
-    develop:
-      watch:
-        - action: rebuild
-          path: ./services/approval-engine/
-
-  rollout-planner:
-    <<: *service-defaults
-    build:
-      context: ./services/rollout-planner
-    environment:
-      - NATS_URL=nats://nats:4222
-    depends_on:
-      nats:
-        condition: service_started
-
-  rollback-engine:
-    <<: *service-defaults
-    build:
-      context: ./services/rollback-engine
-    environment:
-      - NATS_URL=nats://nats:4222
-    depends_on:
-      nats:
-        condition: service_started
-
-  eks-executor:
-    <<: *service-defaults
-    build:
-      context: ./services/eks-executor
-    environment:
-      - NATS_URL=nats://nats:4222
-      - CLOUD_PROVIDER=aws
-    depends_on:
       nats:
         condition: service_started
     develop:
       watch:
         - action: rebuild
-          path: ./services/eks-executor/
+          path: ./services/catalog-service/
 
-  gke-executor:
-    <<: *service-defaults
+  provisioner-service:
+    <<: *go-service
     build:
-      context: ./services/gke-executor
-    environment:
-      - NATS_URL=nats://nats:4222
-      - CLOUD_PROVIDER=gcp
-    depends_on:
-      nats:
-        condition: service_started
-
-  health-checker:
-    <<: *service-defaults
-    build:
-      context: ./services/health-checker
-    environment:
-      - NATS_URL=nats://nats:4222
-    depends_on:
-      nats:
-        condition: service_started
-
-  audit-logger:
-    <<: *service-defaults
-    build:
-      context: ./services/audit-logger
-    environment:
-      - NATS_URL=nats://nats:4222
-      - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
-    depends_on:
-      nats:
-        condition: service_started
-      postgres:
-        condition: service_healthy
-
-  policy-engine:
-    <<: *service-defaults
-    build:
-      context: ./services/policy-engine
-    ports:
-      - "8181:8181"
-    environment:
-      - REGO_PATH=/policies
-    volumes:
-      - ./policies:/policies
-
-  environment-api:
-    <<: *service-defaults
-    build:
-      context: ./services/environment-api
+      context: ./services/provisioner-service
     ports:
       - "8082:8082"
     environment:
       - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
+      - NATS_URL=nats://nats:4222
+      - PORT=8082
     depends_on:
       postgres:
         condition: service_healthy
+      nats:
+        condition: service_started
+    develop:
+      watch:
+        - action: rebuild
+          path: ./services/provisioner-service/
 
-  metrics-service:
-    <<: *service-defaults
+  scorecard-service:
+    <<: *go-service
     build:
-      context: ./services/metrics-service
+      context: ./services/scorecard-service
     ports:
       - "8083:8083"
     environment:
       - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
+      - NATS_URL=nats://nats:4222
+      - PORT=8083
     depends_on:
       postgres:
         condition: service_healthy
-
-  diff-service:
-    <<: *service-defaults
-    build:
-      context: ./services/diff-service
-    ports:
-      - "8084:8084"
-
-  notifier:
-    <<: *service-defaults
-    build:
-      context: ./services/notifier
-    environment:
-      - NATS_URL=nats://nats:4222
-    depends_on:
       nats:
         condition: service_started
+    develop:
+      watch:
+        - action: rebuild
+          path: ./services/scorecard-service/
+
+  workflow-engine:
+    <<: *go-service
+    build:
+      context: ./services/workflow-engine
+    ports:
+      - "8084:8084"
+    environment:
+      - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
+      - NATS_URL=nats://nats:4222
+      - REDIS_ADDR=redis:6379
+      - PORT=8084
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: rebuild
+          path: ./services/workflow-engine/
+
+  audit-service:
+    <<: *go-service
+    build:
+      context: ./services/audit-service
+    ports:
+      - "8085:8085"
+    environment:
+      - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
+      - NATS_URL=nats://nats:4222
+      - PORT=8085
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+    develop:
+      watch:
+        - action: rebuild
+          path: ./services/audit-service/
+
+  # ── Frontend ─────────────────────────────────────────────────
 
   portal-ui:
-    <<: *service-defaults
+    <<: *go-service
     build:
       context: ./services/portal-ui
     ports:
@@ -258,8 +188,11 @@ services:
     depends_on:
       - authelia
     environment:
-      - VITE_API_URL=http://accio.localhost:8080
-      - VITE_ENV_API_URL=http://accio.localhost:8082
+      - VITE_CATALOG_URL=http://localhost:8081
+      - VITE_PROVISIONER_URL=http://localhost:8082
+      - VITE_SCORECARD_URL=http://localhost:8083
+      - VITE_WORKFLOW_URL=http://localhost:8084
+      - VITE_AUDIT_URL=http://localhost:8085
       - VITE_OIDC_AUTHORITY=http://accio.localhost:9091
       - VITE_OIDC_CLIENT_ID=accio-portal
       - VITE_OIDC_REDIRECT_URI=http://accio.localhost:3000/callback
