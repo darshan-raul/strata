@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: scorecard-service
-          image: scorecard-service:latest
+          image: localhost:5000/scorecard-service:latest
           ports:
             - containerPort: 8083
           env:

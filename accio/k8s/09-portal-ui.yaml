@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: portal-ui
-          image: portal-ui:latest
+          image: localhost:5000/portal-ui:latest
           ports:
             - containerPort: 3000
           env:

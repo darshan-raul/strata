@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: workflow-engine
-          image: workflow-engine:latest
+          image: localhost:5000/workflow-engine:latest
           ports:
             - containerPort: 8084
           env:

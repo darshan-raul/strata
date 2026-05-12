@@ -11,7 +11,7 @@ This guide walks through deploying the Accio application suite on a Kind (Kubern
 
 ## Step 1: Create Kind Cluster
 
-Create a Kind cluster with extra port mappings for the services:
+Create a Kind cluster with extra port mappings for the services and local registry configuration:
 
 ```bash
 cat > accio-kind.yaml << 'EOF'
@@ -27,37 +27,65 @@ nodes:
   - containerPort: 30991
     hostPort: 9091
     protocol: TCP
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      imageRepository: localhost:5000
+      imagePullPolicy: IfNotPresent
 ```
 
 ```bash
 kind create cluster --config accio-kind.yaml --image kindest/node:v1.36.0
 ```
 
-## Step 2: Build Docker Images
+## Development with Tilt (Recommended)
 
-Build all service images and load them into the Kind cluster:
-
+Tilt automates the build→push→deploy cycle with file watching. Install once with:
 ```bash
-# Build catalog-service
-docker build -t catalog-service:latest ./services/catalog-service
-
-# Build provisioner-service
-docker build -t provisioner-service:latest ./services/provisioner-service
-
-# Build scorecard-service
-docker build -t scorecard-service:latest ./services/scorecard-service
-
-# Build workflow-engine
-docker build -t workflow-engine:latest ./services/workflow-engine
-
-# Build audit-service
-docker build -t audit-service:latest ./services/audit-service
-
-# Build portal-ui
-docker build -t portal-ui:latest ./services/portal-ui
+brew install tilt  # macOS
+# or: curl -fsSL https://raw.githubusercontent.com/tilt-dev/tilt/master/scripts/get_tilt.sh | bash
 ```
 
-## Step 3: Load Images into Kind
+**First-time setup:**
+```bash
+bash scripts/start-registry.sh  # starts registry + creates cluster with registry config
+```
+
+**Every development session:**
+```bash
+tilt up
+```
+
+Tilt will:
+- Watch for code changes and rebuild automatically
+- Push images to local registry (`localhost:5000`)
+- Deploy updates to Kind cluster
+- Show live logs in web UI at `localhost:10350`
+
+**Cleanup:**
+```bash
+tilt down  # removes deployed resources (keeps cluster)
+```
+
+---
+
+## Manual Approach (Original)
+
+### Step 2: Build and Push Images to Local Registry
+
+```bash
+# Start local registry if not running
+docker run -d --restart=always -p 5000:5000 --name accio-registry registry:2
+
+# Build and push each service
+for svc in catalog-service provisioner-service scorecard-service workflow-engine audit-service portal-ui; do
+  docker build -t localhost:5000/$svc:latest ./services/$svc
+  docker push localhost:5000/$svc:latest
+done
+```
+
+### Step 3: Deploy to Kubernetes
 
 ```bash
 kind load docker-image catalog-service:latest --name accio
