@@ -1,0 +1,36 @@
+{{- /*
+Redis headless and clusterip services
+*/ -}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless
+  namespace: {{ include "accio.namespace" . }}
+  labels:
+    {{- include "accio.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  ports:
+    - port: 6379
+      targetPort: 6379
+      name: redis
+  selector:
+    {{- include "accio.selectorLabels" . | nindent 4 }}
+    component: redis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: {{ include "accio.namespace" . }}
+  labels:
+    {{- include "accio.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    {{- include "accio.selectorLabels" . | nindent 4 }}
+    component: redis

@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-service
+  namespace: {{ include "accio.namespace" . }}
+  labels:
+    {{- include "accio.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.catalogService.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "accio.selectorLabels" . | nindent 6 }}
+      component: catalog-service
+  template:
+    metadata:
+      labels:
+        {{- include "accio.selectorLabels" . | nindent 8 }}
+        component: catalog-service
+    spec:
+      containers:
+        - name: catalog-service
+          image: "{{ .Values.catalogService.image.repository }}:{{ .Values.catalogService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.catalogService.service.port }}
+          env:
+            - name: DB_DSN
+              value: {{ include "accio.postgres.url" . }}
+            - name: NATS_URL
+              value: {{ include "accio.nats.url" . }}
+            - name: PORT
+              value: {{ .Values.catalogService.service.port | quote }}
+          resources:
+            {{- toYaml .Values.catalogService.resources | nindent 10 }}

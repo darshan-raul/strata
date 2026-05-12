@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workflow-engine
+  namespace: accio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: workflow-engine
+  template:
+    metadata:
+      labels:
+        app: workflow-engine
+    spec:
+      containers:
+        - name: workflow-engine
+          image: workflow-engine:latest
+          ports:
+            - containerPort: 8084
+          env:
+            - name: DB_DSN
+              value: "postgres://accio:accio_password@postgres:5432/accio?sslmode=disable"
+            - name: NATS_URL
+              value: "nats://nats:4222"
+            - name: REDIS_ADDR
+              value: "redis:6379"
+            - name: PORT
+              value: "8084"
+          resources:
+            limits:
+              cpu: "0.5"
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workflow-engine
+  namespace: accio
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8084
+      targetPort: 8084
+  selector:
+    app: workflow-engine

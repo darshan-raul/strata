@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scorecard-service
+  namespace: {{ include "accio.namespace" . }}
+  labels:
+    {{- include "accio.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.scorecardService.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "accio.selectorLabels" . | nindent 6 }}
+      component: scorecard-service
+  template:
+    metadata:
+      labels:
+        {{- include "accio.selectorLabels" . | nindent 8 }}
+        component: scorecard-service
+    spec:
+      containers:
+        - name: scorecard-service
+          image: "{{ .Values.scorecardService.image.repository }}:{{ .Values.scorecardService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.scorecardService.service.port }}
+          env:
+            - name: DB_DSN
+              value: {{ include "accio.postgres.url" . }}
+            - name: NATS_URL
+              value: {{ include "accio.nats.url" . }}
+            - name: PORT
+              value: {{ .Values.scorecardService.service.port | quote }}
+          resources:
+            {{- toYaml .Values.scorecardService.resources | nindent 10 }}

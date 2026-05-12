@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workflow-engine
+  namespace: {{ include "accio.namespace" . }}
+  labels:
+    {{- include "accio.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.workflowEngine.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "accio.selectorLabels" . | nindent 6 }}
+      component: workflow-engine
+  template:
+    metadata:
+      labels:
+        {{- include "accio.selectorLabels" . | nindent 8 }}
+        component: workflow-engine
+    spec:
+      containers:
+        - name: workflow-engine
+          image: "{{ .Values.workflowEngine.image.repository }}:{{ .Values.workflowEngine.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.workflowEngine.service.port }}
+          env:
+            - name: DB_DSN
+              value: {{ include "accio.postgres.url" . }}
+            - name: NATS_URL
+              value: {{ include "accio.nats.url" . }}
+            - name: REDIS_ADDR
+              value: "redis:6379"
+            - name: PORT
+              value: {{ .Values.workflowEngine.service.port | quote }}
+          resources:
+            {{- toYaml .Values.workflowEngine.resources | nindent 10 }}

@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit-service
+  namespace: {{ include "accio.namespace" . }}
+  labels:
+    {{- include "accio.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.auditService.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "accio.selectorLabels" . | nindent 6 }}
+      component: audit-service
+  template:
+    metadata:
+      labels:
+        {{- include "accio.selectorLabels" . | nindent 8 }}
+        component: audit-service
+    spec:
+      containers:
+        - name: audit-service
+          image: "{{ .Values.auditService.image.repository }}:{{ .Values.auditService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.auditService.service.port }}
+          env:
+            - name: DB_DSN
+              value: {{ include "accio.postgres.url" . }}
+            - name: NATS_URL
+              value: {{ include "accio.nats.url" . }}
+            - name: PORT
+              value: {{ .Values.auditService.service.port | quote }}
+          resources:
+            {{- toYaml .Values.auditService.resources | nindent 10 }}

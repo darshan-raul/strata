@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit-service
+  namespace: accio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: audit-service
+  template:
+    metadata:
+      labels:
+        app: audit-service
+    spec:
+      containers:
+        - name: audit-service
+          image: audit-service:latest
+          ports:
+            - containerPort: 8085
+          env:
+            - name: DB_DSN
+              value: "postgres://accio:accio_password@postgres:5432/accio?sslmode=disable"
+            - name: NATS_URL
+              value: "nats://nats:4222"
+            - name: PORT
+              value: "8085"
+          resources:
+            limits:
+              cpu: "0.5"
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: audit-service
+  namespace: accio
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8085
+      targetPort: 8085
+  selector:
+    app: audit-service

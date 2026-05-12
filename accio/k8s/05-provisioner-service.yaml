@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: provisioner-service
+  namespace: accio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: provisioner-service
+  template:
+    metadata:
+      labels:
+        app: provisioner-service
+    spec:
+      containers:
+        - name: provisioner-service
+          image: provisioner-service:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: DB_DSN
+              value: "postgres://accio:accio_password@postgres:5432/accio?sslmode=disable"
+            - name: NATS_URL
+              value: "nats://nats:4222"
+            - name: PORT
+              value: "8082"
+          resources:
+            limits:
+              cpu: "0.5"
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: provisioner-service
+  namespace: accio
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8082
+      targetPort: 8082
+  selector:
+    app: provisioner-service

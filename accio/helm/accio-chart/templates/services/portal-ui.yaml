@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-ui
+  namespace: {{ include "accio.namespace" . }}
+  labels:
+    {{- include "accio.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.portalUi.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "accio.selectorLabels" . | nindent 6 }}
+      component: portal-ui
+  template:
+    metadata:
+      labels:
+        {{- include "accio.selectorLabels" . | nindent 8 }}
+        component: portal-ui
+    spec:
+      containers:
+        - name: portal-ui
+          image: "{{ .Values.portalUi.image.repository }}:{{ .Values.portalUi.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.portalUi.service.port }}
+          env:
+            - name: VITE_CATALOG_URL
+              value: "http://catalog-service:{{ .Values.catalogService.service.port }}"
+            - name: VITE_PROVISIONER_URL
+              value: "http://provisioner-service:{{ .Values.provisionerService.service.port }}"
+            - name: VITE_SCORECARD_URL
+              value: "http://scorecard-service:{{ .Values.scorecardService.service.port }}"
+            - name: VITE_WORKFLOW_URL
+              value: "http://workflow-engine:{{ .Values.workflowEngine.service.port }}"
+            - name: VITE_AUDIT_URL
+              value: "http://audit-service:{{ .Values.auditService.service.port }}"
+            - name: VITE_OIDC_AUTHORITY
+              value: "http://authelia:9091"
+            - name: VITE_OIDC_CLIENT_ID
+              value: "accio-portal"
+            - name: VITE_OIDC_REDIRECT_URI
+              value: "http://accio.localhost:3000/callback"
+          resources:
+            {{- toYaml .Values.portalUi.resources | nindent 10 }}

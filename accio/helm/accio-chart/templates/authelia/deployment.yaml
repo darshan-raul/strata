@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authelia
+  namespace: {{ include "accio.namespace" . }}
+  labels:
+    {{- include "accio.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.authelia.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "accio.selectorLabels" . | nindent 6 }}
+      component: authelia
+  template:
+    metadata:
+      labels:
+        {{- include "accio.selectorLabels" . | nindent 8 }}
+        component: authelia
+    spec:
+      containers:
+        - name: authelia
+          image: "{{ .Values.authelia.image.repository }}:{{ .Values.authelia.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: 9091
+          volumeMounts:
+            - name: authelia-config
+              mountPath: /config
+          env:
+            - name: AUTHELIA_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: authelia-secret
+                  key: SESSION_SECRET
+            - name: AUTHELIA_STORAGE_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: authelia-secret
+                  key: ENCRYPTION_KEY
+            - name: AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: authelia-secret
+                  key: HMAC_SECRET
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9091
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9091
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.authelia.resources | nindent 10 }}
+      volumes:
+        - name: authelia-config
+          configMap:
+            name: authelia-configmap

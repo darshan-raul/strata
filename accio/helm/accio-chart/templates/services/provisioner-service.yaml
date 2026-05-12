@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: provisioner-service
+  namespace: {{ include "accio.namespace" . }}
+  labels:
+    {{- include "accio.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.provisionerService.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "accio.selectorLabels" . | nindent 6 }}
+      component: provisioner-service
+  template:
+    metadata:
+      labels:
+        {{- include "accio.selectorLabels" . | nindent 8 }}
+        component: provisioner-service
+    spec:
+      containers:
+        - name: provisioner-service
+          image: "{{ .Values.provisionerService.image.repository }}:{{ .Values.provisionerService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.provisionerService.service.port }}
+          env:
+            - name: DB_DSN
+              value: {{ include "accio.postgres.url" . }}
+            - name: NATS_URL
+              value: {{ include "accio.nats.url" . }}
+            - name: PORT
+              value: {{ .Values.provisionerService.service.port | quote }}
+          resources:
+            {{- toYaml .Values.provisionerService.resources | nindent 10 }}
