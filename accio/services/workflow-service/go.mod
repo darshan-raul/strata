@@ -1,4 +1,4 @@
-module github.com/accio/workflow-engine
+module github.com/accio/workflow-service
 
 go 1.22.0
 
