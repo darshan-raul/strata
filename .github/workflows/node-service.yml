@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'services/portal-ui/**'
+      - 'accio/services/portal-ui/**'
       - '.github/workflows/node-service.yml'
 
 jobs:
@@ -19,14 +19,14 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
-        cache-dependency-path: services/portal-ui/package-lock.json
+        cache-dependency-path: accio/services/portal-ui/package-lock.json
         
     - name: Install dependencies
-      working-directory: services/portal-ui
+      working-directory: accio/services/portal-ui
       run: npm ci || npm install
         
     - name: Run Linter
-      working-directory: services/portal-ui
+      working-directory: accio/services/portal-ui
       run: npm run lint --if-present
         
     # - name: Run Tests
