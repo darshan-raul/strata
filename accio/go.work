@@ -4,6 +4,6 @@ use (
 	./services/catalog-service
 	./services/provisioner-service
 	./services/scorecard-service
-	./services/workflow-engine
+	./services/workflow-service
 	./services/audit-service
 )
