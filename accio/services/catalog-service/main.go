@@ -27,7 +27,9 @@ func jsonResp(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("encode error: %v", err)
+	}
 }
 
 func cors(next http.HandlerFunc) http.HandlerFunc {
@@ -95,7 +97,10 @@ func teamsHandler(w http.ResponseWriter, r *http.Request) {
 		teams := []Team{}
 		for rows.Next() {
 			var t Team
-			rows.Scan(&t.ID, &t.Name, &t.Email, &t.SlackChannel, &t.CreatedAt)
+			if err := rows.Scan(&t.ID, &t.Name, &t.Email, &t.SlackChannel, &t.CreatedAt); err != nil {
+				log.Printf("scan error: %v", err)
+				continue
+			}
 			teams = append(teams, t)
 		}
 		jsonResp(w, 200, teams)
@@ -114,7 +119,9 @@ func teamsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		payload, _ := json.Marshal(map[string]string{"id": id, "name": t.Name})
-		nc.Publish("idp.catalog.team.created", payload)
+		if err := nc.Publish("idp.catalog.team.created", payload); err != nil {
+			log.Printf("publish error: %v", err)
+		}
 		jsonResp(w, 201, map[string]string{"id": id})
 	}
 }
@@ -154,9 +161,12 @@ func catalogServicesHandler(w http.ResponseWriter, r *http.Request) {
 		svcs := []CatalogService{}
 		for rows.Next() {
 			var s CatalogService
-			rows.Scan(&s.ID, &s.Name, &s.Description, &s.TeamID, &s.Language,
+			if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.TeamID, &s.Language,
 				&s.RepoURL, &s.Lifecycle, &s.Type, &s.HasDocs, &s.HasSLO, &s.HasAPISpec,
-				&s.HasMonitoring, &s.CreatedAt, &s.UpdatedAt)
+				&s.HasMonitoring, &s.CreatedAt, &s.UpdatedAt); err != nil {
+				log.Printf("scan error: %v", err)
+				continue
+			}
 			svcs = append(svcs, s)
 		}
 		jsonResp(w, 200, svcs)
@@ -186,7 +196,9 @@ func catalogServicesHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		payload, _ := json.Marshal(map[string]string{"id": id, "name": s.Name, "type": s.Type})
-		nc.Publish("idp.catalog.service.created", payload)
+		if err := nc.Publish("idp.catalog.service.created", payload); err != nil {
+			log.Printf("publish error: %v", err)
+		}
 		log.Printf("[catalog] service registered: %s (%s)", s.Name, id)
 		jsonResp(w, 201, map[string]string{"id": id})
 	}
@@ -216,12 +228,22 @@ func catalogServiceByIDHandler(w http.ResponseWriter, r *http.Request) {
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
 	var total, production, experimental, beta int
-	db.QueryRow(`SELECT COUNT(*) FROM catalog_services`).Scan(&total)
-	db.QueryRow(`SELECT COUNT(*) FROM catalog_services WHERE lifecycle='production'`).Scan(&production)
-	db.QueryRow(`SELECT COUNT(*) FROM catalog_services WHERE lifecycle='experimental'`).Scan(&experimental)
-	db.QueryRow(`SELECT COUNT(*) FROM catalog_services WHERE lifecycle='beta'`).Scan(&beta)
+	if err := db.QueryRow(`SELECT COUNT(*) FROM catalog_services`).Scan(&total); err != nil {
+		log.Printf("count total error: %v", err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM catalog_services WHERE lifecycle='production'`).Scan(&production); err != nil {
+		log.Printf("count production error: %v", err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM catalog_services WHERE lifecycle='experimental'`).Scan(&experimental); err != nil {
+		log.Printf("count experimental error: %v", err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM catalog_services WHERE lifecycle='beta'`).Scan(&beta); err != nil {
+		log.Printf("count beta error: %v", err)
+	}
 	var teamCount int
-	db.QueryRow(`SELECT COUNT(*) FROM catalog_teams`).Scan(&teamCount)
+	if err := db.QueryRow(`SELECT COUNT(*) FROM catalog_teams`).Scan(&teamCount); err != nil {
+		log.Printf("count teams error: %v", err)
+	}
 	jsonResp(w, 200, map[string]int{
 		"total_services":   total,
 		"production":       production,

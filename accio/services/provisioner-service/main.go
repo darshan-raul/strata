@@ -28,7 +28,9 @@ func jsonResp(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("encode error: %v", err)
+	}
 }
 
 func cors(next http.HandlerFunc) http.HandlerFunc {
@@ -94,9 +96,13 @@ func simulateProvisioning(id string) {
 
 	// pending → provisioning
 	time.Sleep(time.Duration(2+rand.Intn(3)) * time.Second)
-	db.Exec(`UPDATE provision_requests SET status='provisioning', updated_at=NOW() WHERE id=$1`, id)
+	if _, err := db.Exec(`UPDATE provision_requests SET status='provisioning', updated_at=NOW() WHERE id=$1`, id); err != nil {
+		log.Printf("exec error: %v", err)
+	}
 	payload, _ := json.Marshal(map[string]string{"id": id, "status": "provisioning"})
-	nc.Publish("idp.provisioner.request.updated", payload)
+	if err := nc.Publish("idp.provisioner.request.updated", payload); err != nil {
+		log.Printf("publish error: %v", err)
+	}
 	log.Printf("[provisioner] %s → provisioning", id)
 
 	// provisioning → completed|failed (90% success)
@@ -107,10 +113,14 @@ func simulateProvisioning(id string) {
 		finalStatus = "failed"
 		errMsg = "Quota exceeded in target region"
 	}
-	db.Exec(`UPDATE provision_requests SET status=$1, error_message=$2, updated_at=NOW() WHERE id=$3`,
-		finalStatus, errMsg, id)
+	if _, err := db.Exec(`UPDATE provision_requests SET status=$1, error_message=$2, updated_at=NOW() WHERE id=$3`,
+		finalStatus, errMsg, id); err != nil {
+		log.Printf("exec error: %v", err)
+	}
 	payload, _ = json.Marshal(map[string]string{"id": id, "status": finalStatus})
-	nc.Publish("idp.provisioner.request."+finalStatus, payload)
+	if err := nc.Publish("idp.provisioner.request."+finalStatus, payload); err != nil {
+		log.Printf("publish error: %v", err)
+	}
 	log.Printf("[provisioner] %s → %s", id, finalStatus)
 }
 
@@ -129,8 +139,11 @@ func provisionListHandler(w http.ResponseWriter, r *http.Request) {
 		reqs := []ProvisionRequest{}
 		for rows.Next() {
 			var p ProvisionRequest
-			rows.Scan(&p.ID, &p.Name, &p.ResourceType, &p.Environment,
-				&p.Requester, &p.Status, &p.ErrorMessage, &p.CreatedAt, &p.UpdatedAt)
+			if err := rows.Scan(&p.ID, &p.Name, &p.ResourceType, &p.Environment,
+				&p.Requester, &p.Status, &p.ErrorMessage, &p.CreatedAt, &p.UpdatedAt); err != nil {
+				log.Printf("scan error: %v", err)
+				continue
+			}
 			reqs = append(reqs, p)
 		}
 		jsonResp(w, 200, reqs)
@@ -154,7 +167,9 @@ func provisionListHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		payload, _ := json.Marshal(map[string]string{"id": id, "name": p.Name, "type": p.ResourceType, "env": p.Environment})
-		nc.Publish("idp.provisioner.request.created", payload)
+		if err := nc.Publish("idp.provisioner.request.created", payload); err != nil {
+			log.Printf("publish error: %v", err)
+		}
 		log.Printf("[provisioner] request created: %s (%s/%s)", p.Name, p.ResourceType, p.Environment)
 		go simulateProvisioning(id)
 		jsonResp(w, 202, map[string]string{"id": id, "status": "pending"})
@@ -183,11 +198,21 @@ func provisionByIDHandler(w http.ResponseWriter, r *http.Request) {
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
 	var total, pending, provisioning, completed, failed int
-	db.QueryRow(`SELECT COUNT(*) FROM provision_requests`).Scan(&total)
-	db.QueryRow(`SELECT COUNT(*) FROM provision_requests WHERE status='pending'`).Scan(&pending)
-	db.QueryRow(`SELECT COUNT(*) FROM provision_requests WHERE status='provisioning'`).Scan(&provisioning)
-	db.QueryRow(`SELECT COUNT(*) FROM provision_requests WHERE status='completed'`).Scan(&completed)
-	db.QueryRow(`SELECT COUNT(*) FROM provision_requests WHERE status='failed'`).Scan(&failed)
+	if err := db.QueryRow(`SELECT COUNT(*) FROM provision_requests`).Scan(&total); err != nil {
+		log.Printf("count total error: %v", err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM provision_requests WHERE status='pending'`).Scan(&pending); err != nil {
+		log.Printf("count pending error: %v", err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM provision_requests WHERE status='provisioning'`).Scan(&provisioning); err != nil {
+		log.Printf("count provisioning error: %v", err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM provision_requests WHERE status='completed'`).Scan(&completed); err != nil {
+		log.Printf("count completed error: %v", err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM provision_requests WHERE status='failed'`).Scan(&failed); err != nil {
+		log.Printf("count failed error: %v", err)
+	}
 	jsonResp(w, 200, map[string]int{
 		"total": total, "pending": pending, "provisioning": provisioning,
 		"completed": completed, "failed": failed,

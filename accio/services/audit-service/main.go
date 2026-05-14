@@ -26,7 +26,9 @@ func jsonResp(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("encode error: %v", err)
+	}
 }
 
 func cors(next http.HandlerFunc) http.HandlerFunc {
@@ -136,7 +138,9 @@ func auditHandler(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.URL.Query().Get("limit")
 	limit := 100
 	if limitStr != "" {
-		json.Unmarshal([]byte(limitStr), &limit)
+		if err := json.Unmarshal([]byte(limitStr), &limit); err != nil {
+			log.Printf("limit parse error: %v", err)
+		}
 	}
 
 	query := `SELECT id, event_type, COALESCE(entity_type,''), COALESCE(entity_id,''),
@@ -171,8 +175,11 @@ func auditHandler(w http.ResponseWriter, r *http.Request) {
 	events := []AuditEvent{}
 	for rows.Next() {
 		var e AuditEvent
-		rows.Scan(&e.ID, &e.EventType, &e.EntityType, &e.EntityID,
-			&e.Actor, &e.Summary, &e.CreatedAt)
+		if err := rows.Scan(&e.ID, &e.EventType, &e.EntityType, &e.EntityID,
+			&e.Actor, &e.Summary, &e.CreatedAt); err != nil {
+			log.Printf("scan error: %v", err)
+			continue
+		}
 		events = append(events, e)
 	}
 	jsonResp(w, 200, events)
@@ -180,9 +187,13 @@ func auditHandler(w http.ResponseWriter, r *http.Request) {
 
 func auditStatsHandler(w http.ResponseWriter, r *http.Request) {
 	var total int
-	db.QueryRow(`SELECT COUNT(*) FROM audit_events`).Scan(&total)
+	if err := db.QueryRow(`SELECT COUNT(*) FROM audit_events`).Scan(&total); err != nil {
+		log.Printf("count total error: %v", err)
+	}
 	var todayCount int
-	db.QueryRow(`SELECT COUNT(*) FROM audit_events WHERE created_at >= NOW() - INTERVAL '24 hours'`).Scan(&todayCount)
+	if err := db.QueryRow(`SELECT COUNT(*) FROM audit_events WHERE created_at >= NOW() - INTERVAL '24 hours'`).Scan(&todayCount); err != nil {
+		log.Printf("count today error: %v", err)
+	}
 
 	rows, _ := db.Query(`SELECT event_type, COUNT(*) FROM audit_events GROUP BY event_type ORDER BY COUNT(*) DESC LIMIT 10`)
 	byType := map[string]int{}
@@ -191,7 +202,10 @@ func auditStatsHandler(w http.ResponseWriter, r *http.Request) {
 		for rows.Next() {
 			var t string
 			var c int
-			rows.Scan(&t, &c)
+			if err := rows.Scan(&t, &c); err != nil {
+				log.Printf("scan by_type error: %v", err)
+				continue
+			}
 			byType[t] = c
 		}
 	}
@@ -217,20 +231,27 @@ func main() {
 	}
 	for _, subj := range subjects {
 		s := subj // capture
-		nc.Subscribe(s, func(msg *nats.Msg) {
+		if _, err := nc.Subscribe(s, func(msg *nats.Msg) {
 			var data map[string]any
-			json.Unmarshal(msg.Data, &data)
+			if err := json.Unmarshal(msg.Data, &data); err != nil {
+				log.Printf("unmarshal error: %v", err)
+				data = map[string]any{}
+			}
 			if data == nil {
 				data = map[string]any{}
 			}
 			storeEvent(msg.Subject, data)
-		})
+		}); err != nil {
+			log.Printf("subscribe error for %s: %v", s, err)
+		}
 		log.Printf("subscribed to %s", s)
 	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		db.QueryRow(`SELECT 1`).Scan(new(int)) // liveness check
+		if err := db.QueryRow(`SELECT 1`).Scan(new(int)); err != nil {
+			log.Printf("liveness check error: %v", err)
+		}
 		jsonResp(w, 200, map[string]string{"status": "ok", "service": "audit-service"})
 	})
 	mux.HandleFunc("/audit", cors(auditHandler))

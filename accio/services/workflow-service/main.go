@@ -31,7 +31,9 @@ func jsonResp(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("encode error: %v", err)
+	}
 }
 
 func cors(next http.HandlerFunc) http.HandlerFunc {
@@ -150,33 +152,49 @@ func mustMarshal(v any) []byte {
 
 func runWorkflow(workflowID string, def WorkflowDef) {
 	log.Printf("running workflow %s (%d steps)", workflowID, len(def.Steps))
-	db.Exec(`UPDATE workflows SET status='running', updated_at=NOW() WHERE id=$1`, workflowID)
-	nc.Publish("idp.workflow.started", mustMarshal(map[string]string{"id": workflowID}))
+	if _, err := db.Exec(`UPDATE workflows SET status='running', updated_at=NOW() WHERE id=$1`, workflowID); err != nil {
+		log.Printf("exec error: %v", err)
+	}
+	if err := nc.Publish("idp.workflow.started", mustMarshal(map[string]string{"id": workflowID})); err != nil {
+		log.Printf("publish error: %v", err)
+	}
 
 	for i, stepName := range def.Steps {
 		stepNum := i + 1
 		now := time.Now()
-		db.Exec(`UPDATE workflow_steps SET status='running', started_at=$1 WHERE workflow_id=$2 AND step_number=$3`,
-			now, workflowID, stepNum)
-		db.Exec(`UPDATE workflows SET current_step=$1, updated_at=NOW() WHERE id=$2`, stepNum, workflowID)
+		if _, err := db.Exec(`UPDATE workflow_steps SET status='running', started_at=$1 WHERE workflow_id=$2 AND step_number=$3`,
+			now, workflowID, stepNum); err != nil {
+			log.Printf("exec error: %v", err)
+		}
+		if _, err := db.Exec(`UPDATE workflows SET current_step=$1, updated_at=NOW() WHERE id=$2`, stepNum, workflowID); err != nil {
+			log.Printf("exec error: %v", err)
+		}
 		rdb.HSet(ctx, "workflow:"+workflowID, "current_step", stepNum, "step_name", stepName)
 
 		time.Sleep(time.Duration(2+stepNum) * time.Second)
 
 		done := time.Now()
-		db.Exec(`UPDATE workflow_steps SET status='completed', output='Completed successfully', completed_at=$1 WHERE workflow_id=$2 AND step_number=$3`,
-			done, workflowID, stepNum)
-		nc.Publish("idp.workflow.step.completed", mustMarshal(map[string]any{
+		if _, err := db.Exec(`UPDATE workflow_steps SET status='completed', output='Completed successfully', completed_at=$1 WHERE workflow_id=$2 AND step_number=$3`,
+			done, workflowID, stepNum); err != nil {
+			log.Printf("exec error: %v", err)
+		}
+		if err := nc.Publish("idp.workflow.step.completed", mustMarshal(map[string]any{
 			"workflow_id": workflowID, "step": stepNum, "name": stepName,
-		}))
+		})); err != nil {
+			log.Printf("publish error: %v", err)
+		}
 		log.Printf("workflow %s step %d/%d ✓ %s", workflowID, stepNum, len(def.Steps), stepName)
 	}
 
-	db.Exec(`UPDATE workflows SET status='completed', current_step=$1, updated_at=NOW() WHERE id=$2`,
-		len(def.Steps), workflowID)
+	if _, err := db.Exec(`UPDATE workflows SET status='completed', current_step=$1, updated_at=NOW() WHERE id=$2`,
+		len(def.Steps), workflowID); err != nil {
+		log.Printf("exec error: %v", err)
+	}
 	rdb.HSet(ctx, "workflow:"+workflowID, "status", "completed")
 	rdb.Expire(ctx, "workflow:"+workflowID, 1*time.Hour)
-	nc.Publish("idp.workflow.completed", mustMarshal(map[string]string{"id": workflowID}))
+	if err := nc.Publish("idp.workflow.completed", mustMarshal(map[string]string{"id": workflowID})); err != nil {
+		log.Printf("publish error: %v", err)
+	}
 	log.Printf("workflow %s completed", workflowID)
 }
 
@@ -195,8 +213,11 @@ func workflowsHandler(w http.ResponseWriter, r *http.Request) {
 		wfs := []Workflow{}
 		for rows.Next() {
 			var wf Workflow
-			rows.Scan(&wf.ID, &wf.Name, &wf.Type, &wf.Status, &wf.EntityID, &wf.EntityType,
-				&wf.CurrentStep, &wf.TotalSteps, &wf.CreatedAt, &wf.UpdatedAt)
+			if err := rows.Scan(&wf.ID, &wf.Name, &wf.Type, &wf.Status, &wf.EntityID, &wf.EntityType,
+				&wf.CurrentStep, &wf.TotalSteps, &wf.CreatedAt, &wf.UpdatedAt); err != nil {
+				log.Printf("scan error: %v", err)
+				continue
+			}
 			wfs = append(wfs, wf)
 		}
 		jsonResp(w, 200, wfs)
@@ -260,8 +281,11 @@ func workflowByIDHandler(w http.ResponseWriter, r *http.Request) {
 		defer rows.Close()
 		for rows.Next() {
 			var s Step
-			rows.Scan(&s.ID, &s.WorkflowID, &s.StepNumber, &s.Name, &s.Status,
-				&s.Output, &s.StartedAt, &s.CompletedAt)
+			if err := rows.Scan(&s.ID, &s.WorkflowID, &s.StepNumber, &s.Name, &s.Status,
+				&s.Output, &s.StartedAt, &s.CompletedAt); err != nil {
+				log.Printf("scan error: %v", err)
+				continue
+			}
 			wf.Steps = append(wf.Steps, s)
 		}
 	}
@@ -278,10 +302,18 @@ func workflowTypesHandler(w http.ResponseWriter, r *http.Request) {
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
 	var total, running, completed, pending int
-	db.QueryRow(`SELECT COUNT(*) FROM workflows`).Scan(&total)
-	db.QueryRow(`SELECT COUNT(*) FROM workflows WHERE status='running'`).Scan(&running)
-	db.QueryRow(`SELECT COUNT(*) FROM workflows WHERE status='completed'`).Scan(&completed)
-	db.QueryRow(`SELECT COUNT(*) FROM workflows WHERE status='pending'`).Scan(&pending)
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workflows`).Scan(&total); err != nil {
+		log.Printf("count total error: %v", err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workflows WHERE status='running'`).Scan(&running); err != nil {
+		log.Printf("count running error: %v", err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workflows WHERE status='completed'`).Scan(&completed); err != nil {
+		log.Printf("count completed error: %v", err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workflows WHERE status='pending'`).Scan(&pending); err != nil {
+		log.Printf("count pending error: %v", err)
+	}
 	jsonResp(w, 200, map[string]int{
 		"total": total, "running": running, "completed": completed, "pending": pending,
 	})

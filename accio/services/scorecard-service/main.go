@@ -27,7 +27,9 @@ func jsonResp(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("encode error: %v", err)
+	}
 }
 
 func cors(next http.HandlerFunc) http.HandlerFunc {
@@ -156,7 +158,9 @@ func evaluateService(serviceID, serviceName string) {
 		"service_id": serviceID, "service_name": serviceName,
 		"total_score": total, "grade": g,
 	})
-	nc.Publish("idp.scorecard.evaluated", payload)
+	if err := nc.Publish("idp.scorecard.evaluated", payload); err != nil {
+		log.Printf("publish error: %v", err)
+	}
 	log.Printf("[scorecard] evaluated %s → %d (%s)", serviceName, total, g)
 }
 
@@ -173,8 +177,11 @@ func scorecardsHandler(w http.ResponseWriter, r *http.Request) {
 	cards := []Scorecard{}
 	for rows.Next() {
 		var s Scorecard
-		rows.Scan(&s.ID, &s.ServiceID, &s.ServiceName, &s.DocsScore, &s.SecurityScore,
-			&s.ReliabilityScore, &s.OwnershipScore, &s.TotalScore, &s.Grade, &s.EvaluatedAt)
+		if err := rows.Scan(&s.ID, &s.ServiceID, &s.ServiceName, &s.DocsScore, &s.SecurityScore,
+			&s.ReliabilityScore, &s.OwnershipScore, &s.TotalScore, &s.Grade, &s.EvaluatedAt); err != nil {
+			log.Printf("scan error: %v", err)
+			continue
+		}
 		cards = append(cards, s)
 	}
 	jsonResp(w, 200, cards)
@@ -215,7 +222,10 @@ func refreshAllHandler(w http.ResponseWriter, r *http.Request) {
 	count := 0
 	for rows.Next() {
 		var id, name string
-		rows.Scan(&id, &name)
+		if err := rows.Scan(&id, &name); err != nil {
+			log.Printf("scan error: %v", err)
+			continue
+		}
 		go evaluateService(id, name)
 		count++
 	}
@@ -231,13 +241,15 @@ func main() {
 	nc = waitForNATS(env("NATS_URL", "nats://nats:4222"))
 
 	// Subscribe to new catalog service events → auto-evaluate
-	nc.Subscribe("idp.catalog.service.created", func(msg *nats.Msg) {
+	if _, err := nc.Subscribe("idp.catalog.service.created", func(msg *nats.Msg) {
 		var data map[string]string
 		if err := json.Unmarshal(msg.Data, &data); err != nil {
 			return
 		}
 		go evaluateService(data["id"], data["name"])
-	})
+	}); err != nil {
+		log.Printf("subscribe error: %v", err)
+	}
 
 	// Seed scorecards for existing services on startup
 	go func() {
@@ -253,7 +265,10 @@ func main() {
 		defer rows.Close()
 		for rows.Next() {
 			var id, name string
-			rows.Scan(&id, &name)
+			if err := rows.Scan(&id, &name); err != nil {
+				log.Printf("scan error: %v", err)
+				continue
+			}
 			evaluateService(id, name)
 		}
 	}()
