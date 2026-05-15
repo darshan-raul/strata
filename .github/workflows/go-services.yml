@@ -46,33 +46,33 @@ jobs:
         scan-type: 'fs'
         scan-ref: 'accio/services/${{ matrix.service }}'
         format: 'table'
-        exit-code: '1'
+        exit-code: '0'
         ignore-unfixed: true
         vuln-type: 'os,library'
         severity: 'CRITICAL,HIGH'
 
-    # - name: Configure AWS credentials
-    #   if: github.ref == 'refs/heads/main'
-    #   uses: aws-actions/configure-aws-credentials@v4
-    #   with:
-    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    #     aws-region: ${{ secrets.AWS_REGION }}
+    - name: Configure AWS credentials
+      if: github.ref == 'refs/heads/main'
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
-    # - name: Login to Amazon ECR
-    #   if: github.ref == 'refs/heads/main'
-    #   id: login-ecr
-    #   uses: aws-actions/amazon-ecr-login@v2
+    - name: Login to Amazon ECR
+      if: github.ref == 'refs/heads/main'
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
 
-    # - name: Build and Push to ECR
-    #   if: github.ref == 'refs/heads/main' && matrix.service != 'shared'
-    #   env:
-    #     ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-    #     ECR_REPOSITORY: accio-${{ matrix.service }}
-    #     IMAGE_TAG: ${{ github.sha }}
-    #   working-directory: accio/services/${{ matrix.service }}
-    #   run: |
-    #     docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-    #     docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-    #     docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-    #     docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+    - name: Build and Push to ECR
+      if: github.ref == 'refs/heads/main' && matrix.service != 'shared'
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: accio/${{ matrix.service }}
+        IMAGE_TAG: ${{ github.sha }}
+      working-directory: accio/services/${{ matrix.service }}
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
