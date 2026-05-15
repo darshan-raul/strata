@@ -224,7 +224,6 @@ func main() {
 	log.SetPrefix("[provisioner-service] ")
 	log.Println("Starting...")
 
-	rand.Seed(time.Now().UnixNano())
 	db = waitForDB(env("DB_DSN", "postgres://accio:accio_password@postgres:5432/accio?sslmode=disable"))
 	nc = waitForNATS(env("NATS_URL", "nats://nats:4222"))
 

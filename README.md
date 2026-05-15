@@ -190,6 +190,34 @@ kind create cluster
 cd accio && tilt up
 ```
 
+### Running CI Workflows Locally
+
+Use [act](https://github.com/nektos/act) to run GitHub Actions workflows locally without pushing commits.
+
+**Installation:**
+```bash
+curl -sL https://github.com/nektos/act/releases/download/v0.2.88/act_Linux_x86_64.tar.gz | tar -xz
+mv act ~/bin/act
+```
+
+**Configuration** (`~/.config/act/actrc`):
+```
+-P ubuntu-latest=ghcr.io/catthehacker/ubuntu:runner-latest
+```
+
+**Usage:**
+```bash
+# Run specific workflow
+act -W .github/workflows/node-service.yml          # Portal UI
+act -W .github/workflows/go-services.yml           # Go services (all 5 in parallel)
+
+# Run specific job
+act -W .github/workflows/go-services.yml -j build-test-lint-scan-deploy
+
+# Use cached actions (faster, no network)
+act --action-offline-mode
+```
+
 ---
 
 ## Getting Started

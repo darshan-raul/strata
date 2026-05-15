@@ -247,8 +247,10 @@ func workflowsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for i, name := range def.Steps {
-			db.Exec(`INSERT INTO workflow_steps (workflow_id, step_number, name) VALUES ($1,$2,$3)`,
-				id, i+1, name)
+			if _, err := db.Exec(`INSERT INTO workflow_steps (workflow_id, step_number, name) VALUES ($1,$2,$3)`,
+				id, i+1, name); err != nil {
+				log.Printf("failed to insert workflow step: %v", err)
+			}
 		}
 		log.Printf("created %s workflow %s", req.Type, id)
 		go runWorkflow(id, def)

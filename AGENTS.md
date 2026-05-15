@@ -129,6 +129,47 @@ Used for local Kind cluster development. Run with `cd accio && tilt up`.
 - `.github/workflows/go-services.yml` — Matrix builds for all 5 Go services (lint + test)
 - `.github/workflows/node-service.yml` — Portal UI build and lint
 
+### Local Workflow Testing with `act`
+
+Run GitHub Actions locally without pushing commits.
+
+**Installation:**
+```bash
+# Download and install act binary
+curl -sL https://github.com/nektos/act/releases/download/v0.2.88/act_Linux_x86_64.tar.gz | tar -xz
+mv act ~/bin/act
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+```
+
+**Configuration** (`~/.config/act/actrc`):
+```
+-P ubuntu-latest=ghcr.io/catthehacker/ubuntu:runner-latest
+```
+
+**Usage:**
+```bash
+# Run all workflows (uses push event by default)
+act
+
+# Run specific workflow
+act -W .github/workflows/node-service.yml
+act -W .github/workflows/go-services.yml
+
+# Run specific job
+act -W .github/workflows/go-services.yml -j build-test-lint-scan-deploy
+
+# Run with workflow_dispatch (interactive)
+act -W .github/workflows/go-services.yml -e workflow_dispatch
+
+# Use cached actions (faster, no network)
+act --action-offline-mode
+```
+
+**Notes:**
+- Go services matrix runs all 5 services in parallel
+- First run downloads Docker images (~1GB), subsequent runs use cache
+- Auth errors for private repos: run `gh auth login`
+
 ## Not Yet Created
 
 - Step Functions state machines (`state_machines/provision_cluster.asl.json`, `deprovision.asl.json`)
