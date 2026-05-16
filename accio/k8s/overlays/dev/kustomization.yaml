@@ -7,9 +7,9 @@ resources:
   - ../../base
 
 images:
-  - name: envoy-gateway
-    newName: envoyproxy/envoy
-    newTag: v1.30
+  - name: envoyproxy/envoy
+    newName: localhost:5000/envoyproxy/envoy
+    newTag: latest
   - name: catalog-service
     newName: localhost:5000/catalog-service
     newTag: latest
