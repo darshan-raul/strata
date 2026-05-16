@@ -25,3 +25,6 @@ images:
   - name: portal-ui
     newName: localhost:5000/portal-ui
     newTag: latest
+  - name: auth-service
+    newName: localhost:5000/auth-service
+    newTag: latest

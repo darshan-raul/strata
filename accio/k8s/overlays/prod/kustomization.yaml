@@ -25,6 +25,9 @@ images:
   - name: portal-ui
     newName: <ECR_PLACEHOLDER>.dkr.ecr.us-east-1.amazonaws.com/portal-ui
     newTag: v1.0.0
+  - name: auth-service
+    newName: <ECR_PLACEHOLDER>.dkr.ecr.us-east-1.amazonaws.com/auth-service
+    newTag: v1.0.0
 
 commonLabels:
   variant: prod
@@ -41,4 +44,6 @@ replicas:
   - name: audit-service
     count: 2
   - name: portal-ui
+    count: 2
+  - name: auth-service
     count: 2

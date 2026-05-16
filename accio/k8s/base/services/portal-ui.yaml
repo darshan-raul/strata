@@ -29,12 +29,8 @@ spec:
               value: "http://workflow-engine:8084"
             - name: VITE_AUDIT_URL
               value: "http://audit-service:8085"
-            - name: VITE_OIDC_AUTHORITY
-              value: "http://authelia:9091"
-            - name: VITE_OIDC_CLIENT_ID
-              value: "accio-portal"
-            - name: VITE_OIDC_REDIRECT_URI
-              value: "http://accio.localhost:3000/callback"
+            - name: VITE_AUTH_URL
+              value: "http://localhost:9091"
           resources:
             limits:
               cpu: "0.5"

@@ -62,13 +62,11 @@ services:
     networks:
       - accio-net
 
-  authelia:
-    image: authelia/authelia:4.38
-    restart: always
-    volumes:
-      - ./authelia:/config
+  auth-service:
+    build:
+      context: ./services/auth-service
     ports:
-      - "9091:9091"
+      - "8086:8086"
     networks:
       - accio-net
 
@@ -186,16 +184,14 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - authelia
+      - auth-service
     environment:
       - VITE_CATALOG_URL=http://localhost:8081
       - VITE_PROVISIONER_URL=http://localhost:8082
       - VITE_SCORECARD_URL=http://localhost:8083
       - VITE_WORKFLOW_URL=http://localhost:8084
       - VITE_AUDIT_URL=http://localhost:8085
-      - VITE_OIDC_AUTHORITY=http://accio.localhost:9091
-      - VITE_OIDC_CLIENT_ID=accio-portal
-      - VITE_OIDC_REDIRECT_URI=http://accio.localhost:3000/callback
+      - VITE_AUTH_URL=http://localhost:8086
     develop:
       watch:
         - action: sync

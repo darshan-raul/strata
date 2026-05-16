@@ -1,25 +1,49 @@
 // Central API client — reads service URLs from Vite env vars
+import { authHeader } from './auth-api.js'
+
+const AUTH = import.meta.env.VITE_AUTH_URL || 'http://localhost:8086'
 const CATALOG    = import.meta.env.VITE_CATALOG_URL    || 'http://localhost:8081'
 const PROV       = import.meta.env.VITE_PROVISIONER_URL || 'http://localhost:8082'
 const SCORE      = import.meta.env.VITE_SCORECARD_URL   || 'http://localhost:8083'
 const WORKFLOW   = import.meta.env.VITE_WORKFLOW_URL    || 'http://localhost:8084'
 const AUDIT      = import.meta.env.VITE_AUDIT_URL       || 'http://localhost:8085'
 
-async function get(base, path) {
-  const r = await fetch(`${base}${path}`)
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`)
-  return r.json()
+function get(base, path) {
+  return fetch(`${base}${path}`, { headers: { ...authHeader() } })
+    .then(res => {
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+      return res.json()
+    })
 }
 
-async function post(base, path, body) {
-  const r = await fetch(`${base}${path}`, {
+function post(base, path, body) {
+  return fetch(`${base}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeader() },
+    body: JSON.stringify(body),
+  }).then(res => {
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+    return res.json()
+  })
+}
+
+// Auth
+export const loginUser = (username, password) =>
+  fetch(`${AUTH}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ username, password }),
+  }).then(res => {
+    if (!res.ok) throw new Error('Invalid credentials')
+    return res.json()
   })
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`)
-  return r.json()
-}
+
+export const getMe = () =>
+  fetch(`${AUTH}/auth/me`, { headers: { ...authHeader() } })
+    .then(res => {
+      if (!res.ok) throw new Error('Not authenticated')
+      return res.json()
+    })
 
 // Catalog
 export const getCatalogServices = () => get(CATALOG, '/catalog/services')

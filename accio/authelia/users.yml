@@ -1,8 +1,0 @@
-users:
-  admin:
-    displayname: "Accio Admin"
-    password: "$argon2id$v=19$m=65536,t=3,p=4$9ymXpqyLymoXrc8HYA3Rxw$wLZuT//nvzPk0yuXyOo4t13G+imzLst1P8B7xo2B5PE"
-    email: admin@accio.dev
-    groups:
-      - admins
-      - dev

@@ -1,16 +1,26 @@
-import React from 'react'
-import { useAuth } from 'react-oidc-context'
-import { Navigate } from 'react-router-dom'
+import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { login } from '../auth-api.js'
 
 export default function LoginPage() {
-  const auth = useAuth()
+  const navigate = useNavigate()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  if (auth.isAuthenticated) {
-    return <Navigate to="/" replace />
-  }
-
-  const handleLogin = () => {
-    auth.signinRedirect()
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      await login(username, password)
+      navigate('/', { replace: true })
+    } catch (err) {
+      setError(err.message || 'Login failed')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -25,12 +35,30 @@ export default function LoginPage() {
           Ship code with confidence across EKS &amp; GKE
         </p>
 
-        <button className="login-btn" onClick={handleLogin} id="login-button">
-          <span>🔐</span>
-          Sign in with SSO
-        </button>
+        <form onSubmit={handleLogin}>
+          {error && <div className="login-error">{error}</div>}
+          <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="login-input"
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="login-input"
+            required
+          />
+          <button type="submit" className="login-btn" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign in'}
+          </button>
+        </form>
 
-        <div className="login-divider">secured by Authelia</div>
+        <div className="login-divider">demo mode — ask admin for credentials</div>
 
         <div className="login-features">
           <div className="login-feature">

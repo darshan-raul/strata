@@ -4,6 +4,7 @@ REGISTRY = "localhost:5000"
 NAMESPACE = "accio"
 
 SERVICE_NAMES = [
+    "auth-service",
     "catalog-service",
     "provisioner-service",
     "scorecard-service",

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAuth } from 'react-oidc-context'
+import { isAuthenticated } from './auth-api.js'
 import LoginPage from './pages/LoginPage.jsx'
 import CallbackPage from './pages/CallbackPage.jsx'
 import Dashboard from './pages/Dashboard.jsx'
@@ -11,16 +11,7 @@ import WorkflowsPage from './pages/WorkflowsPage.jsx'
 import AuditPage from './pages/AuditPage.jsx'
 
 function ProtectedRoute({ children }) {
-  const auth = useAuth()
-  if (auth.isLoading) {
-    return (
-      <div className="loading-screen">
-        <div className="loading-spinner" />
-        <p>Authenticating...</p>
-      </div>
-    )
-  }
-  if (!auth.isAuthenticated) {
+  if (!isAuthenticated()) {
     return <Navigate to="/login" replace />
   }
   return children

@@ -53,22 +53,18 @@ nats:
       cpu: "0.1"
       memory: 128Mi
 
-authelia:
+authService:
   replicaCount: 1
   image:
-    repository: authelia/authelia
-    tag: "4.38"
+    repository: auth-service
+    tag: latest
   resources:
     limits:
       cpu: "0.5"
       memory: 256Mi
     requests:
       cpu: "0.1"
-      memory: 128Mi
-  config:
-    sessionSecret: acciodevsecret
-    encryptionKey: acciodevsecretacciodevsecret1234
-    hmacSecret: acciodevsecretacciodevsecret1234
+      memory: 64Mi
 
 catalogService:
   replicaCount: 1

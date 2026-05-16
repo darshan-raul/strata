@@ -5,6 +5,7 @@ namespace: accio
 
 resources:
   - infrastructure.yaml
+  - services/auth-service.yaml
   - services/catalog-service.yaml
   - services/provisioner-service.yaml
   - services/scorecard-service.yaml

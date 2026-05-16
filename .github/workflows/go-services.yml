@@ -15,6 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         service: 
+          - auth-service
           - audit-service
           - catalog-service
           - provisioner-service
@@ -64,7 +65,7 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build and Push to ECR
+    - name: Build and Push to ECR 
       if: github.ref == 'refs/heads/main' && matrix.service != 'shared'
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -76,3 +77,4 @@ jobs:
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+  

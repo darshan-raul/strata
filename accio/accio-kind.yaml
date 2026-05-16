@@ -16,6 +16,3 @@ nodes:
     nodeRegistration:
       imageRepository: localhost:5000
       imagePullPolicy: IfNotPresent
-
-
-

@@ -30,11 +30,7 @@ spec:
               value: "http://workflow-engine:{{ .Values.workflowEngine.service.port }}"
             - name: VITE_AUDIT_URL
               value: "http://audit-service:{{ .Values.auditService.service.port }}"
-            - name: VITE_OIDC_AUTHORITY
-              value: "http://authelia:9091"
-            - name: VITE_OIDC_CLIENT_ID
-              value: "accio-portal"
-            - name: VITE_OIDC_REDIRECT_URI
-              value: "http://accio.localhost:3000/callback"
+            - name: VITE_AUTH_URL
+              value: "http://auth-service:8086"
           resources:
             {{- toYaml .Values.portalUi.resources | nindent 10 }}

@@ -24,9 +24,6 @@ nodes:
   - containerPort: 30000
     hostPort: 3000
     protocol: TCP
-  - containerPort: 30991
-    hostPort: 9091
-    protocol: TCP
   kubeadmConfigPatches:
   - |
     kind: InitConfiguration
@@ -79,7 +76,7 @@ tilt down  # removes deployed resources (keeps cluster)
 docker run -d --restart=always -p 5000:5000 --name accio-registry registry:2
 
 # Build and push each service
-for svc in catalog-service provisioner-service scorecard-service workflow-engine audit-service portal-ui; do
+for svc in auth-service catalog-service provisioner-service scorecard-service workflow-engine audit-service portal-ui; do
   docker build -t localhost:5000/$svc:latest ./services/$svc
   docker push localhost:5000/$svc:latest
 done
@@ -88,6 +85,7 @@ done
 ### Step 3: Deploy to Kubernetes
 
 ```bash
+kind load docker-image auth-service:latest --name accio
 kind load docker-image catalog-service:latest --name accio
 kind load docker-image provisioner-service:latest --name accio
 kind load docker-image scorecard-service:latest --name accio
@@ -102,35 +100,29 @@ Apply the manifests in order:
 
 ```bash
 # 1. Infrastructure (PostgreSQL, ConfigMaps, Secrets)
-kubectl apply -f k8s/00-infrastructure.yaml
+kubectl apply -f k8s/base/infrastructure.yaml
 
 # Wait for postgres to be ready
 kubectl wait --for=condition=available --timeout=120s deployment/postgres -n accio
 
-# 2. Redis
-kubectl apply -f k8s/01-redis.yaml
+# 2. Deploy auth-service
+kubectl apply -f k8s/base/services/auth-service.yaml
 
-# 3. NATS
-kubectl apply -f k8s/02-nats.yaml
+# 3. Microservices
+kubectl apply -f k8s/base/services/catalog-service.yaml
+kubectl apply -f k8s/base/services/provisioner-service.yaml
+kubectl apply -f k8s/base/services/scorecard-service.yaml
+kubectl apply -f k8s/base/services/workflow-service.yaml
+kubectl apply -f k8s/base/services/audit-service.yaml
 
-# 4. Authelia
-kubectl apply -f k8s/03-authelia.yaml
-
-# 5. Microservices
-kubectl apply -f k8s/04-catalog-service.yaml
-kubectl apply -f k8s/05-provisioner-service.yaml
-kubectl apply -f k8s/06-scorecard-service.yaml
-kubectl apply -f k8s/07-workflow-engine.yaml
-kubectl apply -f k8s/08-audit-service.yaml
-
-# 6. Portal UI
-kubectl apply -f k8s/09-portal-ui.yaml
+# 4. Portal UI
+kubectl apply -f k8s/base/services/portal-ui.yaml
 ```
 
 Or apply all at once:
 
 ```bash
-kubectl apply -f k8s/
+kubectl apply -f k8s/base/
 ```
 
 ## Step 5: Verify Deployment
@@ -147,7 +139,7 @@ NAME                                READY   STATUS    RESTARTS   AGE
 postgres-xxxxx                      1/1     Running   0          1m
 redis-xxxxx                        1/1     Running   0          1m
 nats-xxxxx                          1/1     Running   0          1m
-authelia-xxxxx                     1/1     Running   0          1m
+auth-service-xxxxx                  1/1     Running   0          1m
 catalog-service-xxxxx               1/1     Running   0          1m
 provisioner-service-xxxxx           1/1     Running   0          1m
 scorecard-service-xxxxx             1/1     Running   0          1m
@@ -161,7 +153,6 @@ portal-ui-xxxxx                     1/1     Running   0          1m
 | Service        | URL                                    | Kind Port |
 |----------------|----------------------------------------|-----------|
 | Portal UI      | http://accio.localhost:3000            | 30000     |
-| Authelia       | http://accio.localhost:9091            | 30991     |
 | Catalog API    | http://localhost:8081 (via port-forward) | -       |
 | Provisioner    | http://localhost:8082 (via port-forward) | -       |
 | Scorecard      | http://localhost:8083 (via port-forward) | -       |
@@ -178,6 +169,9 @@ Add to your `/etc/hosts`:
 ## Step 8: Port Forwards for Backend APIs
 
 ```bash
+# Auth Service
+kubectl port-forward -n accio svc/auth-service 8086:8086
+
 # Catalog Service
 kubectl port-forward -n accio svc/catalog-service 8081:8081
 
@@ -196,10 +190,14 @@ kubectl port-forward -n accio svc/audit-service 8085:8085
 
 ## Authentication
 
-Default test user:
-- Username: `admin`
-- Password: `admin`
-- (Hashed in users.yml - the plaintext password is `admin`)
+Default test users (hardcoded for POC):
+
+| Username | Password | Role |
+|----------|----------|------|
+| admin | admin123 | admin |
+| dev | dev123 | developer |
+| ops | ops123 | operator |
+| test | test123 | developer |
 
 ## Cleanup
 
@@ -226,9 +224,6 @@ Check init logs:
 kubectl logs -n accio deployment/postgres
 ```
 
-### Authelia Issues
-The ConfigMap contains inline configuration. For production, consider using proper secrets management.
-
 ## Architecture Notes
 
 - **Namespace**: `accio`
@@ -236,4 +231,4 @@ The ConfigMap contains inline configuration. For production, consider using prop
 - **Database**: PostgreSQL with init script mounted via ConfigMap
 - **Cache**: Redis for workflow engine
 - **Messaging**: NATS JetStream
-- **Auth**: Authelia OIDC for portal SSO
+- **Auth**: Simple JWT-based auth service (auth-service) with hardcoded users for POC

@@ -1,6 +1,6 @@
 import React from 'react'
-import { useAuth } from 'react-oidc-context'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { logout, getUser } from '../auth-api.js'
 
 const NAV = [
   { section: 'Overview', links: [
@@ -18,14 +18,14 @@ const NAV = [
 ]
 
 export default function Sidebar() {
-  const auth = useAuth()
-  const user = auth.user?.profile
-  const displayName = user?.name || user?.preferred_username || user?.email || 'User'
+  const navigate = useNavigate()
+  const user = getUser()
+  const displayName = user?.name || user?.sub || 'User'
   const initials = displayName.charAt(0).toUpperCase()
 
   const handleLogout = () => {
-    auth.removeUser()
-    window.location.href = '/login'
+    logout()
+    navigate('/login')
   }
 
   return (
