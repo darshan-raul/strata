@@ -62,11 +62,19 @@ services:
     networks:
       - accio-net
 
+  envoy-gateway:
+    image: envoyproxy/envoy:v1.30
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+    networks:
+      - accio-net
+
   auth-service:
     build:
       context: ./services/auth-service
-    ports:
-      - "8086:8086"
     networks:
       - accio-net
 
@@ -76,8 +84,6 @@ services:
     <<: *go-service
     build:
       context: ./services/catalog-service
-    ports:
-      - "8081:8081"
     environment:
       - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
       - NATS_URL=nats://nats:4222
@@ -96,8 +102,6 @@ services:
     <<: *go-service
     build:
       context: ./services/provisioner-service
-    ports:
-      - "8082:8082"
     environment:
       - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
       - NATS_URL=nats://nats:4222
@@ -116,8 +120,6 @@ services:
     <<: *go-service
     build:
       context: ./services/scorecard-service
-    ports:
-      - "8083:8083"
     environment:
       - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
       - NATS_URL=nats://nats:4222
@@ -136,8 +138,6 @@ services:
     <<: *go-service
     build:
       context: ./services/workflow-engine
-    ports:
-      - "8084:8084"
     environment:
       - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
       - NATS_URL=nats://nats:4222
@@ -159,8 +159,6 @@ services:
     <<: *go-service
     build:
       context: ./services/audit-service
-    ports:
-      - "8085:8085"
     environment:
       - DB_DSN=postgres://accio:accio_password@postgres:5432/accio?sslmode=disable
       - NATS_URL=nats://nats:4222
@@ -185,13 +183,14 @@ services:
       - "3000:3000"
     depends_on:
       - auth-service
+      - envoy-gateway
     environment:
-      - VITE_CATALOG_URL=http://localhost:8081
-      - VITE_PROVISIONER_URL=http://localhost:8082
-      - VITE_SCORECARD_URL=http://localhost:8083
-      - VITE_WORKFLOW_URL=http://localhost:8084
-      - VITE_AUDIT_URL=http://localhost:8085
-      - VITE_AUTH_URL=http://localhost:8086
+      - VITE_CATALOG_URL=http://envoy-gateway:80/catalog
+      - VITE_PROVISIONER_URL=http://envoy-gateway:80/provisioner
+      - VITE_SCORECARD_URL=http://envoy-gateway:80/scorecard
+      - VITE_WORKFLOW_URL=http://envoy-gateway:80/workflow
+      - VITE_AUDIT_URL=http://envoy-gateway:80/audit
+      - VITE_AUTH_URL=http://envoy-gateway:80/auth
     develop:
       watch:
         - action: sync

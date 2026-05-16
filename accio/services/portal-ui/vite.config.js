@@ -8,7 +8,27 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/auth': {
-        target: 'http://localhost:30886',
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/catalog': {
+        target: 'http://localhost:80',
+        changeOrigin: true,
+      },
+      '/provisioner': {
+        target: 'http://localhost:80',
+        changeOrigin: true,
+      },
+      '/scorecard': {
+        target: 'http://localhost:80',
+        changeOrigin: true,
+      },
+      '/workflow': {
+        target: 'http://localhost:80',
+        changeOrigin: true,
+      },
+      '/audit': {
+        target: 'http://localhost:80',
         changeOrigin: true,
       },
     },
