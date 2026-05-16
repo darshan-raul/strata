@@ -7,6 +7,9 @@ resources:
   - ../../base
 
 images:
+  - name: envoy-gateway
+    newName: <ECR_PLACEHOLDER>.dkr.ecr.us-east-1.amazonaws.com/envoy-gateway
+    newTag: v1.0.0
   - name: catalog-service
     newName: <ECR_PLACEHOLDER>.dkr.ecr.us-east-1.amazonaws.com/catalog-service
     newTag: v1.0.0

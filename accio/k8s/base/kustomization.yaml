@@ -5,6 +5,7 @@ namespace: accio
 
 resources:
   - infrastructure.yaml
+  - services/envoy-gateway.yaml
   - services/auth-service.yaml
   - services/catalog-service.yaml
   - services/provisioner-service.yaml

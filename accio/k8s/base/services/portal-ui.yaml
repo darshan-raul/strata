@@ -20,17 +20,17 @@ spec:
             - containerPort: 3000
           env:
             - name: VITE_CATALOG_URL
-              value: "http://catalog-service:8081"
+              value: "http://envoy-gateway:80/catalog"
             - name: VITE_PROVISIONER_URL
-              value: "http://provisioner-service:8082"
+              value: "http://envoy-gateway:80/provisioner"
             - name: VITE_SCORECARD_URL
-              value: "http://scorecard-service:8083"
+              value: "http://envoy-gateway:80/scorecard"
             - name: VITE_WORKFLOW_URL
-              value: "http://workflow-engine:8084"
+              value: "http://envoy-gateway:80/workflow"
             - name: VITE_AUDIT_URL
-              value: "http://audit-service:8085"
+              value: "http://envoy-gateway:80/audit"
             - name: VITE_AUTH_URL
-              value: "http://localhost:9091"
+              value: "http://envoy-gateway:80/auth"
           resources:
             limits:
               cpu: "0.5"
@@ -42,10 +42,9 @@ metadata:
   name: portal-ui
   namespace: accio
 spec:
-  type: NodePort
+  type: ClusterIP
   ports:
     - port: 3000
       targetPort: 3000
-      nodePort: 30000
   selector:
     app: portal-ui
