@@ -3,19 +3,15 @@ kind: Deployment
 metadata:
   name: workflow-engine
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.workflowEngine.replicaCount }}
   selector:
     matchLabels:
-      {{- include "accio.selectorLabels" . | nindent 6 }}
-      component: workflow-engine
+      app: workflow-engine
   template:
     metadata:
       labels:
-        {{- include "accio.selectorLabels" . | nindent 8 }}
-        component: workflow-engine
+        app: workflow-engine
     spec:
       containers:
         - name: workflow-engine

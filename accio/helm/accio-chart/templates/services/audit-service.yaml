@@ -3,19 +3,15 @@ kind: Deployment
 metadata:
   name: audit-service
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.auditService.replicaCount }}
   selector:
     matchLabels:
-      {{- include "accio.selectorLabels" . | nindent 6 }}
-      component: audit-service
+      app: audit-service
   template:
     metadata:
       labels:
-        {{- include "accio.selectorLabels" . | nindent 8 }}
-        component: audit-service
+        app: audit-service
     spec:
       containers:
         - name: audit-service

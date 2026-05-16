@@ -3,8 +3,6 @@ kind: Service
 metadata:
   name: portal-ui
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 spec:
   type: NodePort
   ports:
@@ -12,5 +10,4 @@ spec:
       targetPort: {{ .Values.portalUi.service.port }}
       nodePort: {{ .Values.portalUi.service.nodePort }}
   selector:
-    {{- include "accio.selectorLabels" . | nindent 4 }}
-    component: portal-ui
+    app: portal-ui

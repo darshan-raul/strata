@@ -3,13 +3,10 @@ kind: Service
 metadata:
   name: provisioner-service
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
     - port: {{ .Values.provisionerService.service.port }}
       targetPort: {{ .Values.provisionerService.service.port }}
   selector:
-    {{- include "accio.selectorLabels" . | nindent 4 }}
-    component: provisioner-service
+    app: provisioner-service

@@ -6,37 +6,10 @@ Expand the name of this chart
 {{- end }}
 
 {{/*
-Create a default fully qualified app name
-*/}}
-{{- define "accio.fullname" -}}
-{{- $name := default .Chart.Name .Values.nameOverride }}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-
-{{/*
 Create the namespace
 */}}
 {{- define "accio.namespace" -}}
 {{- .Values.namespace }}
-{{- end }}
-
-{{/*
-Common labels
-*/}}
-{{- define "accio.labels" -}}
-app.kubernetes.io/name: {{ include "accio.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-{{- end }}
-
-{{/*
-Selector labels
-*/}}
-{{- define "accio.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "accio.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*

@@ -3,20 +3,16 @@ kind: StatefulSet
 metadata:
   name: postgres
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 spec:
   serviceName: postgres-headless
   replicas: {{ .Values.postgres.replicaCount }}
   selector:
     matchLabels:
-      {{- include "accio.selectorLabels" . | nindent 6 }}
-      component: postgres
+      app: postgres
   template:
     metadata:
       labels:
-        {{- include "accio.selectorLabels" . | nindent 8 }}
-        component: postgres
+        app: postgres
     spec:
       containers:
         - name: postgres
@@ -58,6 +54,10 @@ spec:
             periodSeconds: 5
           resources:
             {{- toYaml .Values.postgres.resources | nindent 10 }}
+      volumes:
+        - name: init-db
+          configMap:
+            name: init-db-config
   volumeClaimTemplates:
     - metadata:
         name: postgres-data

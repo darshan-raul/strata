@@ -3,19 +3,15 @@ kind: Deployment
 metadata:
   name: provisioner-service
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.provisionerService.replicaCount }}
   selector:
     matchLabels:
-      {{- include "accio.selectorLabels" . | nindent 6 }}
-      component: provisioner-service
+      app: provisioner-service
   template:
     metadata:
       labels:
-        {{- include "accio.selectorLabels" . | nindent 8 }}
-        component: provisioner-service
+        app: provisioner-service
     spec:
       containers:
         - name: provisioner-service

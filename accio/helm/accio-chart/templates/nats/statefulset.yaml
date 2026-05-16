@@ -3,20 +3,16 @@ kind: StatefulSet
 metadata:
   name: nats
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 spec:
   serviceName: nats-headless
   replicas: {{ .Values.nats.replicaCount }}
   selector:
     matchLabels:
-      {{- include "accio.selectorLabels" . | nindent 6 }}
-      component: nats
+      app: nats
   template:
     metadata:
       labels:
-        {{- include "accio.selectorLabels" . | nindent 8 }}
-        component: nats
+        app: nats
     spec:
       containers:
         - name: nats

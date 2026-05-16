@@ -1,35 +1,8 @@
-{{- /*
-Postgres config and init-db schema
-*/ -}}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: postgres-config
-  namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
-data:
-  POSTGRES_USER: {{ .Values.postgres.env.user | quote }}
-  POSTGRES_DB: {{ .Values.postgres.env.database | quote }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: postgres-secret
-  namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
-type: Opaque
-stringData:
-  POSTGRES_PASSWORD: {{ .Values.postgres.env.password }}
----
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: init-db-config
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 data:
   01-schema.sql: |
     -- ============================================================

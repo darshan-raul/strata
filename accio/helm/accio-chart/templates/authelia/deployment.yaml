@@ -3,19 +3,15 @@ kind: Deployment
 metadata:
   name: authelia
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.authelia.replicaCount }}
   selector:
     matchLabels:
-      {{- include "accio.selectorLabels" . | nindent 6 }}
-      component: authelia
+      app: authelia
   template:
     metadata:
       labels:
-        {{- include "accio.selectorLabels" . | nindent 8 }}
-        component: authelia
+        app: authelia
     spec:
       containers:
         - name: authelia

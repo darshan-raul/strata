@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: provisioner-service
-          image: localhost:5000/provisioner-service:latest
+          image: provisioner-service:latest
           ports:
             - containerPort: 8082
           env:

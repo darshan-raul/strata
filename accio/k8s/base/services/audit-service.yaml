@@ -1,30 +1,30 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: scorecard-service
+  name: audit-service
   namespace: accio
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: scorecard-service
+      app: audit-service
   template:
     metadata:
       labels:
-        app: scorecard-service
+        app: audit-service
     spec:
       containers:
-        - name: scorecard-service
-          image: localhost:5000/scorecard-service:latest
+        - name: audit-service
+          image: audit-service:latest
           ports:
-            - containerPort: 8083
+            - containerPort: 8085
           env:
             - name: DB_DSN
               value: "postgres://accio:accio_password@postgres:5432/accio?sslmode=disable"
             - name: NATS_URL
               value: "nats://nats:4222"
             - name: PORT
-              value: "8083"
+              value: "8085"
           resources:
             limits:
               cpu: "0.5"
@@ -33,12 +33,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: scorecard-service
+  name: audit-service
   namespace: accio
 spec:
   type: ClusterIP
   ports:
-    - port: 8083
-      targetPort: 8083
+    - port: 8085
+      targetPort: 8085
   selector:
-    app: scorecard-service
+    app: audit-service

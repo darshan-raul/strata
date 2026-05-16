@@ -1,14 +1,8 @@
-{{- /*
-Postgres headless and clusterip services
-*/ -}}
----
 apiVersion: v1
 kind: Service
 metadata:
   name: postgres-headless
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 spec:
   clusterIP: None
   ports:
@@ -16,21 +10,17 @@ spec:
       targetPort: 5432
       name: postgres
   selector:
-    {{- include "accio.selectorLabels" . | nindent 4 }}
-    component: postgres
+    app: postgres
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: postgres
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
     - port: 5432
       targetPort: 5432
   selector:
-    {{- include "accio.selectorLabels" . | nindent 4 }}
-    component: postgres
+    app: postgres

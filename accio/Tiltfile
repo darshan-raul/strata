@@ -3,15 +3,14 @@
 REGISTRY = "localhost:5000"
 NAMESPACE = "accio"
 
-# Service name -> k8s manifest prefix mapping
-SERVICE_MANIFESTS = {
-    "catalog-service": "04",
-    "provisioner-service": "05",
-    "scorecard-service": "06",
-    "workflow-engine": "07",
-    "audit-service": "08",
-    "portal-ui": "09",
-}
+SERVICE_NAMES = [
+    "catalog-service",
+    "provisioner-service",
+    "scorecard-service",
+    "workflow-service",
+    "audit-service",
+    "portal-ui",
+]
 
 def build_service(name, context, port):
     img = REGISTRY + "/" + name + ":latest"
@@ -20,22 +19,11 @@ def build_service(name, context, port):
         context=context,
         dockerfile=context + "/Dockerfile",
     )
-    k8s_yaml("k8s/" + SERVICE_MANIFESTS[name] + "-" + name + ".yaml")
     return img
 
-catalog_service_img = build_service("catalog-service", "./services/catalog-service", 8081)
-provisioner_service_img = build_service("provisioner-service", "./services/provisioner-service", 8082)
-scorecard_service_img = build_service("scorecard-service", "./services/scorecard-service", 8083)
-workflow_engine_img = build_service("workflow-engine", "./services/workflow-engine", 8084)
-audit_service_img = build_service("audit-service", "./services/audit-service", 8085)
-portal_ui_img = build_service("portal-ui", "./services/portal-ui", 3000)
+for svc in SERVICE_NAMES:
+    build_service(svc, "./services/" + svc, 0)
 
-k8s_yaml([
-    "k8s/00-infrastructure.yaml",
-    "k8s/01-redis.yaml",
-    "k8s/02-nats.yaml",
-    "k8s/03-authelia.yaml",
-    "k8s/03-authelia-secret.yaml",
-])
+k8s_yaml(kustomize("k8s/overlays/dev"))
 
 allow_k8s_contexts("kind-accio")

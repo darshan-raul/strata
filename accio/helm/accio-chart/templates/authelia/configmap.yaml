@@ -1,13 +1,8 @@
-{{- /*
-Authelia configmap (configuration.yml + users.yml embedded)
-*/ -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: authelia-configmap
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 data:
   configuration.yml: |
     theme: light

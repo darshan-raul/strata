@@ -3,20 +3,16 @@ kind: StatefulSet
 metadata:
   name: redis
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 spec:
   serviceName: redis-headless
   replicas: {{ .Values.redis.replicaCount }}
   selector:
     matchLabels:
-      {{- include "accio.selectorLabels" . | nindent 6 }}
-      component: redis
+      app: redis
   template:
     metadata:
       labels:
-        {{- include "accio.selectorLabels" . | nindent 8 }}
-        component: redis
+        app: redis
     spec:
       containers:
         - name: redis

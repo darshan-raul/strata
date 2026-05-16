@@ -3,13 +3,10 @@ kind: Service
 metadata:
   name: workflow-engine
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
     - port: {{ .Values.workflowEngine.service.port }}
       targetPort: {{ .Values.workflowEngine.service.port }}
   selector:
-    {{- include "accio.selectorLabels" . | nindent 4 }}
-    component: workflow-engine
+    app: workflow-engine

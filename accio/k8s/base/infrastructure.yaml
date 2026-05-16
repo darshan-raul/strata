@@ -142,6 +142,17 @@ data:
         ('shared-lib-proto', 'Shared protobuf schema definitions',    'Proto',  'production',   'library', true,  false, true,  false)
     ON CONFLICT (name) DO NOTHING;
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: authelia-secret
+  namespace: accio
+type: Opaque
+stringData:
+  SESSION_SECRET: abcd
+  HMAC_SECRET: sdfgfsfgf
+  ENCRYPTION_KEY: dsfgsfgdfgfd
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -238,3 +249,286 @@ spec:
       targetPort: 5432
   selector:
     app: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: accio
+spec:
+  serviceName: redis-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+              name: redis
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: "0.5"
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless
+  namespace: accio
+spec:
+  clusterIP: None
+  ports:
+    - port: 6379
+      targetPort: 6379
+      name: redis
+  selector:
+    app: redis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: accio
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    app: redis
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nats
+  namespace: accio
+spec:
+  serviceName: nats-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nats
+  template:
+    metadata:
+      labels:
+        app: nats
+    spec:
+      containers:
+        - name: nats
+          image: nats:2.10-alpine
+          args: ["-js"]
+          ports:
+            - containerPort: 4222
+              name: client
+            - containerPort: 8222
+              name: monitoring
+          resources:
+            limits:
+              cpu: "0.5"
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats-headless
+  namespace: accio
+spec:
+  clusterIP: None
+  ports:
+    - name: client
+      port: 4222
+      targetPort: 4222
+    - name: monitoring
+      port: 8222
+      targetPort: 8222
+  selector:
+    app: nats
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats
+  namespace: accio
+spec:
+  type: ClusterIP
+  ports:
+    - name: client
+      port: 4222
+      targetPort: 4222
+    - name: monitoring
+      port: 8222
+      targetPort: 8222
+  selector:
+    app: nats
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authelia
+  namespace: accio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authelia
+  template:
+    metadata:
+      labels:
+        app: authelia
+    spec:
+      containers:
+        - name: authelia
+          image: authelia/authelia:4.38
+          ports:
+            - containerPort: 9091
+          volumeMounts:
+            - name: authelia-config
+              mountPath: /config
+          env:
+            - name: AUTHELIA_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: authelia-secret
+                  key: SESSION_SECRET
+            - name: AUTHELIA_STORAGE_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: authelia-secret
+                  key: ENCRYPTION_KEY
+            - name: AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: authelia-secret
+                  key: HMAC_SECRET
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9091
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9091
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: "0.5"
+              memory: 256Mi
+      volumes:
+        - name: authelia-config
+          configMap:
+            name: authelia-configmap
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authelia-configmap
+  namespace: accio
+data:
+  configuration.yml: |
+    theme: light
+    default_2fa_method: totp
+
+    log:
+      level: debug
+
+    server:
+      address: tcp://0.0.0.0:9091/
+
+    authentication_backend:
+      file:
+        path: /config/users.yml
+
+    session:
+      name: authelia_session
+      expiration: 3600
+      inactivity: 300
+      domain: accio.localhost
+
+    storage:
+      encryption_key: acciodevsecretacciodevsecret1234
+      local:
+        path: /config/db.sqlite3
+
+    notifier:
+      disable_startup_check: true
+      filesystem:
+        filename: /config/emails.txt
+
+    access_control:
+      default_policy: one_factor
+
+    identity_validation:
+      reset_password:
+        jwt_secret: acciodevsecret
+
+    identity_providers:
+      oidc:
+        hmac_secret: acciodevsecretacciodevsecret1234
+        jwks:
+          - key: |
+              ${AUTHELIA_JWKS_PRIVATE_KEY}
+        cors:
+          endpoints:
+            - authorization
+            - token
+            - revocation
+            - introspection
+            - userinfo
+          allowed_origins:
+            - http://accio.localhost:3000
+          allowed_origins_from_client_redirect_uris: true
+        clients:
+          - client_id: accio-portal
+            client_name: Accio Portal
+            public: true
+            authorization_policy: one_factor
+            redirect_uris:
+              - http://accio.localhost:3000/callback
+            scopes:
+              - openid
+              - profile
+              - email
+            userinfo_signed_response_alg: none
+            token_endpoint_auth_method: none
+  users.yml: |
+    users:
+      admin:
+        displayname: "Accio Admin"
+        password: "$argon2id$v=19$m=65536,t=3,p=4$9ymXpqyLymoXrc8HYA3Rxw$wLZuT//nvzPk0yuXyOo4t13G+imzLst1P8B7xo2B5PE"
+        email: admin@accio.dev
+        groups:
+          - admins
+          - dev
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: authelia
+  namespace: accio
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9091
+      targetPort: 9091
+  selector:
+    app: authelia

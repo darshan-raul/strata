@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: workflow-engine
+  name: workflow-service
   namespace: accio
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: workflow-engine
+      app: workflow-service
   template:
     metadata:
       labels:
-        app: workflow-engine
+        app: workflow-service
     spec:
       containers:
-        - name: workflow-engine
-          image: localhost:5000/workflow-engine:latest
+        - name: workflow-service
+          image: workflow-service:latest
           ports:
             - containerPort: 8084
           env:
@@ -35,7 +35,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: workflow-engine
+  name: workflow-service
   namespace: accio
 spec:
   type: ClusterIP
@@ -43,4 +43,4 @@ spec:
     - port: 8084
       targetPort: 8084
   selector:
-    app: workflow-engine
+    app: workflow-service

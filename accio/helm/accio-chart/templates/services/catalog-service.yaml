@@ -3,19 +3,15 @@ kind: Deployment
 metadata:
   name: catalog-service
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.catalogService.replicaCount }}
   selector:
     matchLabels:
-      {{- include "accio.selectorLabels" . | nindent 6 }}
-      component: catalog-service
+      app: catalog-service
   template:
     metadata:
       labels:
-        {{- include "accio.selectorLabels" . | nindent 8 }}
-        component: catalog-service
+        app: catalog-service
     spec:
       containers:
         - name: catalog-service

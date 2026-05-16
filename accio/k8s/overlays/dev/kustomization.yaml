@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: accio
+
+resources:
+  - ../../base
+
+images:
+  - name: catalog-service
+    newName: localhost:5000/catalog-service
+    newTag: latest
+  - name: provisioner-service
+    newName: localhost:5000/provisioner-service
+    newTag: latest
+  - name: scorecard-service
+    newName: localhost:5000/scorecard-service
+    newTag: latest
+  - name: workflow-service
+    newName: localhost:5000/workflow-service
+    newTag: latest
+  - name: audit-service
+    newName: localhost:5000/audit-service
+    newTag: latest
+  - name: portal-ui
+    newName: localhost:5000/portal-ui
+    newTag: latest

@@ -3,19 +3,15 @@ kind: Deployment
 metadata:
   name: portal-ui
   namespace: {{ include "accio.namespace" . }}
-  labels:
-    {{- include "accio.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.portalUi.replicaCount }}
   selector:
     matchLabels:
-      {{- include "accio.selectorLabels" . | nindent 6 }}
-      component: portal-ui
+      app: portal-ui
   template:
     metadata:
       labels:
-        {{- include "accio.selectorLabels" . | nindent 8 }}
-        component: portal-ui
+        app: portal-ui
     spec:
       containers:
         - name: portal-ui
