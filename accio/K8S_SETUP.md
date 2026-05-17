@@ -232,3 +232,13 @@ kubectl logs -n accio deployment/postgres
 - **Cache**: Redis for workflow engine
 - **Messaging**: NATS JetStream
 - **Auth**: Simple JWT-based auth service (auth-service) with hardcoded users for POC
+
+
+## Putting image in ECR and using image creds
+
+- create secret: kubectl create secret docker-registry regcred \
+  --docker-server=<id>.dkr.ecr.ap-south-1.amazonaws.com \
+  --docker-username=AWS \
+  --docker-password=$(aws ecr get-login-password --profile lab) \
+  --namespace=accio
+- then use it in imagepullsecret

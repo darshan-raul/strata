@@ -6,28 +6,33 @@ namespace: accio
 resources:
   - ../../base
 
+patches:
+- path: patches/image-pull-secret.yaml
+  target:
+    group: apps
+    version: v1
+    kind: Deployment
+    namespace: accio
+
 images:
-  - name: envoyproxy/envoy
-    newName: localhost:5000/envoyproxy/envoy
-    newTag: latest
   - name: catalog-service
-    newName: localhost:5000/catalog-service
-    newTag: latest
+    newName: ${ECR_REGISTRY}.dkr.ecr.ap-south-1.amazonaws.com/accio/catalog-service
+    newTag: ${IMAGE_TAG}
   - name: provisioner-service
-    newName: localhost:5000/provisioner-service
-    newTag: latest
+    newName: ${ECR_REGISTRY}.dkr.ecr.ap-south-1.amazonaws.com/accio/provisioner-service
+    newTag: ${IMAGE_TAG}
   - name: scorecard-service
-    newName: localhost:5000/scorecard-service
-    newTag: latest
+    newName: ${ECR_REGISTRY}.dkr.ecr.ap-south-1.amazonaws.com/accio/scorecard-service
+    newTag: ${IMAGE_TAG}
   - name: workflow-service
-    newName: localhost:5000/workflow-service
-    newTag: latest
+    newName: ${ECR_REGISTRY}.dkr.ecr.ap-south-1.amazonaws.com/accio/workflow-service
+    newTag: ${IMAGE_TAG}
   - name: audit-service
-    newName: localhost:5000/audit-service
-    newTag: latest
+    newName: ${ECR_REGISTRY}.dkr.ecr.ap-south-1.amazonaws.com/accio/audit-service
+    newTag: ${IMAGE_TAG}
   - name: portal-ui
-    newName: localhost:5000/portal-ui
-    newTag: latest
-  - name: auth-service
-    newName: localhost:5000/auth-service
-    newTag: latest
+    newName: ${ECR_REGISTRY}.dkr.ecr.ap-south-1.amazonaws.com/accio/portal-ui
+    newTag: ${IMAGE_TAG}
+  # - name: auth-service
+  #   newName: localhost:5000/auth-service
+  #   newTag: ebd9b0dc1b865f3e2fe4f55a52187c82618cd9ea

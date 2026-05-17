@@ -195,3 +195,7 @@ cd flutter_app && flutter run
 # Terraform (infra — requires S3 backend configured)
 cd infra && terraform init && terraform plan
 ```
+
+## General Guidelines
+
+- **DO NOT commit changes unless explicitly requested by the user**
