@@ -1,301 +1,157 @@
 # Strata
 
-Cloud-native infrastructure is built in layers — compute, network, storage, orchestration, observability. Each layer has its own objects, its own state, its own drift. Strata is the platform that helps you see, query, and manage across all those layers at once.
+Strata provisions production-grade EKS clusters in your AWS account via GitOps and a Kubernetes-native control plane. Connect a GitHub ops repo and an AWS account; Strata creates an EKS cluster in that account, installs ArgoCD, and syncs the cluster from your ops repo. A built-in AI Co-Pilot lets you drive the platform conversationally.
 
-<!-- IMAGE: Strata Platform Architecture Overview -->
-![Strata Architecture](./diagrams/clusterprovision.png)
 
 ---
 
-## Table of Contents
+## Architecture (target)
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [How It Works](#how-it-works)
-- [Sample Application](#sample-application)
-- [Getting Started](#getting-started)
-- [Project Structure](#project-structure)
-- [Documentation](#documentation)
-
----
-
-## Overview
-
-Strata provisions production-grade EKS clusters in customer AWS accounts via GitOps and a serverless control plane. Users connect their GitHub repos and AWS accounts, and Strata handles the rest — infrastructure provisioning, ArgoCD setup, and continuous monitoring with an AI-powered Co-Pilot.
-
-### Prerequisites
-
-- Users must have at least 2 repositories in GitHub: a **code repo** (application code) and an **ops repo** (for GitOps manifests).
-- Users must have an **AWS account with root/admin access** to deploy the initial CloudFormation template that provisions necessary IAM roles.
-
----
-
-## Architecture
-
-### High-Level Architecture
-
-```mermaid
-graph TB
-    subgraph "Customer AWS Account"
-        EKS[EKS Cluster]
-        ArgoCD[ArgoCD]
-        CustomerS3[S3 - Ops Repo]
-    end
-
-    subgraph "Strata Control Plane (Platform AWS Account)"
-        FlutterApp[Flutter App]
-        APIGW[API Gateway]
-        Cognito[Cognito]
-        DynamoDB[(DynamoDB)]
-        Lambdas[Lambda Functions]
-        StepFunctions[Step Functions]
-        CodeBuild[CodeBuild]
-        Bedrock[Bedrock Agent]
-        SecretsManager[Secrets Manager]
-    end
-
-    FlutterApp --> APIGW
-    APIGW --> Lambdas
-    Lambdas --> DynamoDB
-    Lambdas --> StepFunctions
-    StepFunctions --> CodeBuild
-    CodeBuild -->|STS Assume Role| EKS
-    CodeBuild -->|Terraform Apply| EKS
-    EKS --> ArgoCD
-    ArgoCD --> CustomerS3
-    FlutterApp --> Bedrock
-    Bedrock --> Lambdas
-    Lambdas -->|EKS/CloudWatch| EKS
+```
+                 Strata-prod EKS (your account)
+                 ┌──────────────────────────────────────────────┐
+                 │ Kong Ingress                                  │
+                 │   ├─ orchestrator-service (Go)               │
+                 │   ├─ provisioner-worker (Go, k8s Job)        │
+                 │   ├─ status-poller (Go)                       │
+                 │   ├─ argocd-sync (Go)                         │
+                 │   ├─ health-monitor (Go)                      │
+                 │   └─ agent-service (Python: FastAPI +         │
+                 │       LangGraph + LangChain) ──► LiteLLM     │
+                 │                          └─► Bedrock/OpenAI/ │
+                 │                              Anthropic/Ollama│
+                 │                                              │
+                 │ Argo Workflows (replaces Step Functions)     │
+                 │ CloudNativePG (Postgres)                     │
+                 │ Redis (in-flight state)                      │
+                 │ Zitadel (OIDC)                               │
+                 │ External Secrets Operator ─► AWS Secrets Mgr │
+                 │ Prometheus + Grafana + Loki + Tempo          │
+                 └──────────────────────────────────────────────┘
+                                  │
+                                  │ STS AssumeRole
+                                  ▼
+                 Customer AWS Account (per cluster)
+                 ┌──────────────────────────────────────────────┐
+                 │ EKS + VPC + ArgoCD + apps from ops repo      │
+                 └──────────────────────────────────────────────┘
 ```
 
-### Cluster Provisioning Flow
+---
 
-```mermaid
-sequenceDiagram
-    participant App as Flutter App
-    participant Lambda as Orchestrator
-    participant SFN as Step Functions
-    participant CB as CodeBuild
-    participant CustomerEKS as Customer EKS
-    participant ArgoCD
+## Repository Layout
 
-    App->>Lambda: POST /clusters
-    Lambda->>DynamoDB: Write INITIATED
-    Lambda->>SFN: StartExecution
-    SFN->>CB: StartBuild
-    CB->>CustomerEKS: Create VPC + EKS + ArgoCD
-    CB-->>SFN: Build Complete
-    SFN->>ArgoCD: Configure Repository & App
-    SFN->>DynamoDB: Update READY
-    App->>Lambda: GET /clusters/{id}
-    Lambda-->>App: status: READY
 ```
-
-### Sample Application Architecture
-
-The sample application mirrors the Strata serverless backend as a cloud-native Kubernetes deployment:
-
-<!-- IMAGE: Sample App Flow -->
-![Sample App Architecture](./diagrams/sampleappflow.png)
-
-```mermaid
-graph TD
-    Client[User] --> WebApp[React Web Frontend]
-    WebApp --> Kong[Kong API Gateway]
-    WebApp --> Dex[Dex Identity Provider]
-
-    Kong --> Orch[Orchestrator Service]
-    Orch --> NATS[NATS Message Broker]
-    NATS --> Worker[Worker Service]
-    NATS --> Notif[Notification Service]
-
-    Orch --> DB[(PostgreSQL)]
-    Worker --> DB
-    Notif --> DB
-
-    Verifier[Verifier Service] --> DB
+strata/
+├── AGENTS.md            # source of truth for the plan
+├── handoff.md           # live state across sessions
+├── README.md            # this file
+├── control-plane/       # Helm chart + bootstrap Terraform for Strata-prod
+├── services/            # Go and Python control-plane services
+├── workflows/           # Argo Workflow templates
+├── terraform/aws/       # customer-side EKS module
+├── onboarding/          # CloudFormation template customers deploy
+├── web/                 # TanStack Start (web frontend)
+├── mobile/              # Expo (mobile frontend)
+├── sample-app/          # sample target app deployed to customer clusters
+├── diagrams/            # architecture diagrams
+├── specs/               # design documents
+├── .github/workflows/   # CI
+└── docs/                # architecture, API, tool reference
 ```
 
 ---
 
 ## How It Works
 
-### 1. Onboarding
+### Onboarding
+1. User signs up via the web or mobile app. Auth is handled by Zitadel (OIDC).
+2. User pastes their GitHub personal access token. Stored encrypted in Postgres.
+3. User downloads the onboarding CloudFormation template and deploys it to their AWS account. This creates a cross-account IAM role (`strata-platform-provisioner`) with an external ID generated per-user.
+4. User pastes the role ARN back into Strata. Strata verifies via `sts:AssumeRole`.
+5. User pastes the URL of their ops repo (a Git repo containing Kubernetes manifests).
 
-1. User signs up via Flutter app (Cognito)
-2. User connects GitHub via OAuth2 (token stored in Secrets Manager)
-3. User deploys `onboarding_cfn.yaml` to their AWS account (creates cross-account IAM roles)
-4. Strata verifies IAM setup via `sts:AssumeRole`
+### Provisioning a cluster
+1. User clicks "Provision cluster" in the web app, fills out a form (name, region, instance type, k8s version).
+2. `orchestrator-service` writes a row to the `clusters` table in Postgres (status: `INITIATED`) and kicks off an Argo Workflow.
+3. The workflow assumes the cross-account role, runs Terraform (`terraform/aws/` module) in the customer's account, waits for EKS to be `ACTIVE`, then registers the user's ops repo with the cluster's ArgoCD.
+4. `status-poller` updates Postgres as state changes. The web app polls `/clusters/{id}` until status is `READY` or `FAILED`.
+5. The customer's EKS cluster is now self-managing via ArgoCD. Future changes to their ops repo sync automatically.
 
-### 2. AI Code Analysis (Optional)
+### Co-Pilot
+The right-rail co-pilot (full-page on mobile-web and in the Expo app) is a streaming chat interface backed by a LangGraph agent. It can call five tools:
 
-Before provisioning, the Co-Pilot can analyze the user's codebase:
-- Identifies frameworks and logging gaps
-- Generates OpenTelemetry instrumentation
-- Creates Dockerfile and Kubernetes manifests
-- User commits manifests to their ops repo
+| Tool | Confirmation required |
+|---|---|
+| `list_clusters` | no |
+| `get_cluster_status` | no |
+| `get_cluster_logs` | no |
+| `provision_cluster` | **yes** (allow once / always allow / deny) |
+| `delete_cluster` | **yes** (allow once / always allow / deny) |
 
-### 3. Cluster Provisioning
+All LLM calls go through LiteLLM. The default provider is AWS Bedrock. OpenAI, Anthropic-direct, and Ollama are configured via a `ConfigMap` without code changes.
 
-1. User triggers provisioning from Flutter app (specifies cluster name, region, instance type, ops repo URL)
-2. `orchestrator` Lambda writes `INITIATED` to DynamoDB and starts Step Functions
-3. Step Functions invokes CodeBuild which runs Terraform in the customer account
-4. EKS cluster is created with VPC, ArgoCD via Helm
-5. `argocd_deployer` configures ArgoCD to sync from the user's ops repo
-6. Cluster status marked `READY`
-
-### 4. Continuous Monitoring
-
-- **Proactive:** EventBridge triggers `health_monitor` Lambda every 5 minutes — checks EKS status, CPU/memory, pod crashes
-- **Reactive:** Bedrock Co-Pilot answers natural language queries about cluster health, logs, and debugging
-
-### 5. Cluster Deprovisioning
-
-User triggers delete from app → `orchestrator` updates status to `DELETING` → Step Functions runs `terraform destroy` via CodeBuild
+### Deprovisioning
+User triggers delete from the web app. `orchestrator-service` runs the `deprovision-cluster` Argo Workflow, which `terraform destroy`s the customer-side resources and removes the cluster row.
 
 ---
 
-## Sample Application
+## Tech Stack (locked)
 
-The `sample-app/` directory contains a sample application that serves as a deployment target for Strata-provisioned EKS clusters. It is a cloud-native mirror of the Strata serverless backend.
+| Layer | Choice |
+|---|---|
+| Control plane | Strata-prod EKS (in our AWS account) |
+| Orchestration | Argo Workflows |
+| Database | CloudNativePG (Postgres operator) |
+| Cache | Redis |
+| Auth | Zitadel (OIDC) |
+| Ingress | Kong |
+| Secrets | External Secrets Operator → AWS Secrets Manager |
+| Observability | Prometheus + Grafana + Loki + Tempo |
+| Service mesh | (none for v1; Kong handles north-south) |
+| IaC for customer clusters | Terraform in a Go subprocess |
+| Model proxy | LiteLLM |
+| Agent framework | LangGraph + LangChain (Python) |
+| Web frontend | TanStack Start (TypeScript, Vite) |
+| Mobile frontend | Expo + Expo Router (React Native) |
+| Programming languages | Go (services), Python (agent), TypeScript (frontend) |
 
-### Services
+---
 
-| Service | Port | Description |
-|---------|------|-------------|
-| catalog-service | 8081 | Service and team registry |
-| provisioner-service | 8082 | Infrastructure provisioning simulator |
-| scorecard-service | 8083 | Service health scoring |
-| workflow-service | 8084 | Workflow orchestration engine |
-| audit-service | 8085 | Audit event logging |
+## API Surface (frozen)
 
-### Infrastructure Stack
+| Method | Path | Service | Purpose |
+|---|---|---|---|
+| `POST` | `/clusters` | orchestrator | Provision a new cluster |
+| `GET` | `/clusters` | orchestrator | List user's clusters |
+| `GET` | `/clusters/{id}` | orchestrator | Fast status poll |
+| `DELETE` | `/clusters/{id}` | orchestrator | Deprovision |
+| `GET` | `/dashboard/summary` | orchestrator | Aggregate counts by status |
+| `POST` | `/agent/chat` | agent-service | Streamed chat (SSE) |
+| `PUT` | `/users/me/github-token` | orchestrator | Persist GitHub token |
 
-- **Database:** PostgreSQL (replaces DynamoDB)
-- **Messaging:** NATS (replaces SNS/SQS/EventBridge)
-- **API Gateway:** Kong
-- **Authentication:** Dex (replaces Cognito)
-- **Service Mesh:** Linkerd
-- **GitOps:** ArgoCD
-- **Observability:** OpenTelemetry, Prometheus, Jaeger, Grafana
+---
 
-### Development
+## Local Development (today)
+
+The `sample-app/` is a sample Go microservices app that is the deployment target for Strata-provisioned clusters. Until the rewrite is complete, this is the only runnable piece.
 
 ```bash
-# Local Docker Compose development
+# Local sample app dev
 docker-compose -f sample-app/docker-compose.yml up
 
-# Kind cluster development
+# Kind cluster + Tiltfile dev
 kind create cluster
 cd sample-app && tilt up
-```
-
-### Running CI Workflows Locally
-
-Use [act](https://github.com/nektos/act) to run GitHub Actions workflows locally without pushing commits.
-
-**Installation:**
-```bash
-curl -sL https://github.com/nektos/act/releases/download/v0.2.88/act_Linux_x86_64.tar.gz | tar -xz
-mv act ~/bin/act
-```
-
-**Configuration** (`~/.config/act/actrc`):
-```
--P ubuntu-latest=ghcr.io/catthehacker/ubuntu:runner-latest
-```
-
-**Usage:**
-```bash
-# Run specific workflow
-act -W .github/workflows/node-service.yml          # Portal UI
-act -W .github/workflows/go-services.yml           # Go services (all 5 in parallel)
-
-# Run specific job
-act -W .github/workflows/go-services.yml -j build-test-lint-scan-deploy
-
-# Use cached actions (faster, no network)
-act --action-offline-mode
-```
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- AWS CLI configured
-- Terraform >= 1.8
-- Docker + Docker Compose
-- Go 1.22+
-- Node.js 20+
-- Flutter SDK (for app development)
-
-### Setup
-
-1. **Deploy Strata Control Plane (Infrastructure)**
-   ```bash
-   cd infra
-   terraform init
-   terraform plan
-   terraform apply
-   ```
-
-2. **Package and Deploy Lambdas**
-   ```bash
-   cd lambdas
-   bash package.sh
-   ```
-
-3. **Run Sample App Locally**
-   ```bash
-   docker-compose -f sample-app/docker-compose.yml up
-   ```
-
-4. **Deploy Sample App to EKS (after cluster provisioning)**
-   ```bash
-   # ArgoCD syncs from sample-app/k8s/ manifests
-   ```
-
----
-
-## Project Structure
-
-```
-├── .github/
-│   └── workflows/          # CI/CD workflows
-├── sample-app/             # Sample application (EKS deployment target)
-│   ├── services/           # Go microservices
-│   ├── portal-ui/          # React frontend
-│   ├── docker-compose.yml  # Local development
-│   └── Tiltfile            # Kind cluster development
-├── flutter_app/            # Flutter mobile + web app
-├── infra/                  # Strata control plane Terraform
-├── lambdas/                # Strata serverless backend (Python)
-│   └── orchestrator/       # Only lambda implemented
-├── terraform/
-│   └── aws/                # EKS cluster Terraform module
-├── specs/                  # Design documents and architecture specs
-├── diagrams/               # Architecture diagrams
-├── buildspec.yml           # CodeBuild specification
-└── onboarding_cfn.yaml     # Customer CloudFormation template
 ```
 
 ---
 
 ## Documentation
 
-- [Master Design Document](./specs/strata_master_doc.md) — Full platform specification
-- [Sample App Architecture](./specs/sample_app_architecture.md) — Sample app design
-- [AGENTS.md](./AGENTS.md) — Developer instructions for AI assistants
-- [sample-app/AGENTS.md](./sample-app/AGENTS.md) — Sample app Go services lint rules
+- [AGENTS.md](./AGENTS.md) — full plan, locked decisions, phases
+- [handoff.md](./handoff.md) — live state, session log
+- [specs/strata_master_doc.md](./specs/strata_master_doc.md) — design document (rewriting during Phase 1)
+- [specs/sample_app_architecture.md](./specs/sample_app_architecture.md) — sample app architecture
+- [sample-app/AGENTS.md](./sample-app/AGENTS.md) — Go service lint rules
 
----
-
-## Images
-
-<!-- Add architecture and screenshot images below -->
-
-<!-- ![Onboarding Flow](./diagrams/useronboarding.png) -->
-<!-- ![GitHub Connection](./diagrams/githubconnection.png) -->
-<!-- ![CloudFormation IAM Provisioner](./diagrams/cloudformationiamprovisioner.png) -->
