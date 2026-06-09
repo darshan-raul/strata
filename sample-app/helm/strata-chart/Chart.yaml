@@ -1,5 +1,5 @@
 apiVersion: v2
-name: Strata-chart
+name: strata-chart
 description: Strata - Internal Developer Portal Helm Chart
 type: application
 version: 0.1.0

@@ -224,7 +224,7 @@ func main() {
 	log.SetPrefix("[provisioner-service] ")
 	log.Println("Starting...")
 
-	db = waitForDB(env("DB_DSN", "postgres://Strata:accio_password@postgres:5432/Strata?sslmode=disable"))
+	db = waitForDB(env("DB_DSN", "postgres://strata:strata_password@postgres:5432/strata?sslmode=disable"))
 	nc = waitForNATS(env("NATS_URL", "nats://nats:4222"))
 
 	mux := http.NewServeMux()

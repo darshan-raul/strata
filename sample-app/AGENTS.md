@@ -1,4 +1,6 @@
-# AGENTS.md
+# AGENTS.md — Strata sample-app
+
+The sample application is the deployment target for Strata-provisioned EKS clusters. It is **not** the Strata platform itself; it is a Go microservices mirror that exercises the cluster-provisioning workflow.
 
 ## Repo Structure
 

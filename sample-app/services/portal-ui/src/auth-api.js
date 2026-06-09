@@ -1,15 +1,15 @@
 const AUTH = import.meta.env.VITE_AUTH_URL || 'http://localhost:8086'
 
 function getToken() {
-  return localStorage.getItem('accio_token')
+  return localStorage.getItem('strata_token')
 }
 
 function setToken(token) {
-  localStorage.setItem('accio_token', token)
+  localStorage.setItem('strata_token', token)
 }
 
 function clearToken() {
-  localStorage.removeItem('accio_token')
+  localStorage.removeItem('strata_token')
 }
 
 function parseJwt(token) {

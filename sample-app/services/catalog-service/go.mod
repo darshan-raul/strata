@@ -1,4 +1,4 @@
-module github.com/accio/catalog-service
+module github.com/strata/catalog-service
 
 go 1.24.0
 

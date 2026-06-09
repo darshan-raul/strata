@@ -1,4 +1,4 @@
-module github.com/accio/provisioner-service
+module github.com/strata/provisioner-service
 
 go 1.24.0
 

@@ -1,4 +1,4 @@
-module github.com/accio/scorecard-service
+module github.com/strata/scorecard-service
 
 go 1.24.0
 

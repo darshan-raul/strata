@@ -5,7 +5,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'Strata/services/*-service/**'
+      - 'sample-app/services/*-service/**'
       - '.github/workflows/go-services.yml'
 
 jobs:
@@ -14,38 +14,38 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: 
+        service:
           - auth-service
           - audit-service
           - catalog-service
           - provisioner-service
           - scorecard-service
           - workflow-service
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.25'
-        
+
     - name: Run Linter
       uses: golangci/golangci-lint-action@v6
       with:
         version: latest
-        working-directory: Strata/services/${{ matrix.service }}
+        working-directory: sample-app/services/${{ matrix.service }}
         args: --timeout=5m
-        
+
     - name: Run Tests
-      working-directory: Strata/services/${{ matrix.service }}
+      working-directory: sample-app/services/${{ matrix.service }}
       run: go test -v ./...
-      
+
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
         scan-type: 'fs'
-        scan-ref: 'Strata/services/${{ matrix.service }}'
+        scan-ref: 'sample-app/services/${{ matrix.service }}'
         format: 'table'
         exit-code: '0'
         ignore-unfixed: true
@@ -65,14 +65,13 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build and Push to ECR 
+    - name: Build and Push to ECR
       if: github.ref == 'refs/heads/main' && matrix.service != 'shared'
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: Strata/${{ matrix.service }}
+        ECR_REPOSITORY: strata/${{ matrix.service }}
         IMAGE_TAG: ${{ github.sha }}
-      working-directory: Strata/services/${{ matrix.service }}
+      working-directory: sample-app/services/${{ matrix.service }}
       run: |
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-  

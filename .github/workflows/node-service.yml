@@ -1,37 +1,37 @@
-name: Portal UI CI/CD
+name: Strata Portal UI CI/CD
 
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
     paths:
-      - 'Strata/services/portal-ui/**'
+      - 'sample-app/services/portal-ui/**'
       - '.github/workflows/node-service.yml'
 
 jobs:
   build-test-lint-scan-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        
+
     - name: Install dependencies
-      working-directory: Strata/services/portal-ui
+      working-directory: sample-app/services/portal-ui
       run: npm ci || npm install
-        
+
     - name: Run Linter
-      working-directory: Strata/services/portal-ui
+      working-directory: sample-app/services/portal-ui
       run: npm run lint --if-present
-        
+
     # - name: Run Tests
     #   working-directory: services/portal-ui
     #   run: npm test --if-present || echo "No tests configured yet"
-      
+
     # - name: Run Trivy vulnerability scanner
     #   uses: aquasecurity/trivy-action@master
     #   with:
@@ -60,7 +60,7 @@ jobs:
     #   if: github.ref == 'refs/heads/main'
     #   env:
     #     ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-    #     ECR_REPOSITORY: Strata-portal-ui
+    #     ECR_REPOSITORY: strata-portal-ui
     #     IMAGE_TAG: ${{ github.sha }}
     #   working-directory: services/portal-ui
     #   run: |

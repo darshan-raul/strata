@@ -2,7 +2,7 @@
 
 ## 1. Overall Idea for the App
 
-**Platform Codename:** Strata (App name: Observatory)
+**Platform Codename:** Strata
 **Goal:** A fully managed, AI-assisted SaaS platform for developers and companies with existing GitHub codebases to create and maintain production-grade, cloud-native architectures in their own AWS accounts (with Azure and GCP planned). 
 
 ### Prerequisites:
@@ -128,7 +128,7 @@ Build vertically (thin slices end-to-end) rather than horizontally.
 ### 4.2 Repository Layout
 ```text
 Strata/
-├── flutter_app/                        # Observatory app — Android + Web
+├── flutter_app/                        # Strata app — Android + Web (legacy; being replaced)
 ├── lambdas/
 │   ├── orchestrator/                   # validate + write DDB + start SFN
 │   ├── status_checker/                 # EKS API + CloudWatch queries

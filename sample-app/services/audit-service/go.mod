@@ -1,4 +1,4 @@
-module github.com/accio/audit-service
+module github.com/strata/audit-service
 
 go 1.24.0
 

@@ -20,7 +20,7 @@ spec:
             - containerPort: 8083
           env:
             - name: DB_DSN
-              value: "postgres://Strata:accio_password@postgres:5432/Strata?sslmode=disable"
+              value: "postgres://strata:strata_password@postgres:5432/strata?sslmode=disable"
             - name: NATS_URL
               value: "nats://nats:4222"
             - name: PORT

@@ -1,4 +1,4 @@
-module github.com/accio/workflow-service
+module github.com/strata/workflow-service
 
 go 1.24.0
 

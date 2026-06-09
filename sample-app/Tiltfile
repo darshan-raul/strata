@@ -1,7 +1,7 @@
 # -*- mode: python -*-
 
 REGISTRY = "localhost:5000"
-NAMESPACE = "accio"
+NAMESPACE = "strata"
 
 SERVICE_NAMES = [
     "auth-service",
@@ -27,4 +27,4 @@ for svc in SERVICE_NAMES:
 
 k8s_yaml(kustomize("k8s/overlays/dev"))
 
-allow_k8s_contexts("kind-accio")
+allow_k8s_contexts("kind-strata")
