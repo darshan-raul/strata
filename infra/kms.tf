@@ -2,8 +2,8 @@
 # KMS key — encrypts S3 buckets, Secrets Manager secrets, DynamoDB (optional)
 # ---------------------------------------------------------------------------
 
-resource "aws_kms_key" "accio" {
-  description             = "ACCIO platform master encryption key"
+resource "aws_kms_key" "strata" {
+  description             = "Strata platform master encryption key"
   deletion_window_in_days = 30
   enable_key_rotation     = true
 
@@ -24,8 +24,8 @@ resource "aws_kms_key" "accio" {
         Effect = "Allow"
         Principal = {
           AWS = [
-            aws_iam_role.accio_lambda.arn,
-            aws_iam_role.accio_codebuild.arn,
+            aws_iam_role.strata_lambda.arn,
+            aws_iam_role.strata_codebuild.arn,
           ]
         }
         Action = [
@@ -38,10 +38,10 @@ resource "aws_kms_key" "accio" {
     ]
   })
 
-  tags = { Name = "accio-master-key" }
+  tags = { Name = "strata-master-key" }
 }
 
-resource "aws_kms_alias" "accio" {
-  name          = "alias/accio-master"
-  target_key_id = aws_kms_key.accio.key_id
+resource "aws_kms_alias" "strata" {
+  name          = "alias/strata-master"
+  target_key_id = aws_kms_key.strata.key_id
 }

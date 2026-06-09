@@ -1,6 +1,6 @@
 resource "aws_codebuild_project" "provisioner" {
-  name          = "accio-eks-provisioner"
-  service_role  = aws_iam_role.accio_codebuild.arn
+  name          = "strata-eks-provisioner"
+  service_role  = aws_iam_role.strata_codebuild.arn
 
   source {
     type     = "S3"
@@ -32,7 +32,7 @@ resource "aws_codebuild_project" "provisioner" {
 
   logs_config {
     cloudwatch_logs {
-      group_name = "/aws/codebuild/accio-eks-provisioner"
+      group_name = "/aws/codebuild/strata-eks-provisioner"
     }
   }
 }

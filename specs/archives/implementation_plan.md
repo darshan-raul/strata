@@ -1,4 +1,4 @@
-# ACCIO Platform — Staged Build Plan
+# Strata Platform — Staged Build Plan
 
 ## Philosophy
 
@@ -11,16 +11,16 @@ The Bedrock Agent is intentionally last — it depends on everything else being 
 
 ## Stage 1 — Platform Foundation (Infra skeleton)
 
-> **Goal:** ACCIO AWS account has all always-on resources. Nothing provisioned in customer accounts yet.
+> **Goal:** Strata AWS account has all always-on resources. Nothing provisioned in customer accounts yet.
 
 ### Files
 - `infra/main.tf` — provider, backend, data sources
 - `infra/cognito.tf` — User Pool, App Client, custom attributes (`github_token`, `aws_account_id`)
 - `infra/dynamodb.tf` — `clusters` table (PK `user_id`, SK `cluster_id`, TTL)
-- `infra/s3.tf` — four S3 buckets (`accio-tf-code`, `accio-tf-state`, `accio-outputs`, `accio-agent-schemas`, `accio-onboarding-cfn`)
+- `infra/s3.tf` — four S3 buckets (`Strata-tf-code`, `Strata-tf-state`, `Strata-outputs`, `Strata-agent-schemas`, `Strata-onboarding-cfn`)
 - `infra/secrets_manager.tf` — KMS key + resource policy
-- `infra/iam.tf` — ACCIO-side roles: `accio-codebuild-role`, `accio-lambda-role`
-- `onboarding_cfn.yaml` — customer-side CloudFormation template (upload to `accio-onboarding-cfn` bucket)
+- `infra/iam.tf` — Strata-side roles: `Strata-codebuild-role`, `Strata-lambda-role`
+- `onboarding_cfn.yaml` — customer-side CloudFormation template (upload to `Strata-onboarding-cfn` bucket)
 
 ### Verification
 ```bash
@@ -188,7 +188,7 @@ flutter run -d <android-id>  # Android
 > **Goal:** Production-ready. Error paths handled, web hosting live, security tightened.
 
 ### Tasks
-- Replace `AdministratorAccess` on `accio-platform-provisioner` with a scoped-down policy (EKS, EC2, VPC, IAM:PassRole only)
+- Replace `AdministratorAccess` on `Strata-platform-provisioner` with a scoped-down policy (EKS, EC2, VPC, IAM:PassRole only)
 - Add `ExternalId` to all `sts:assume_role` calls in CodeBuild + Lambda (align with CFN template)
 - CloudFront distribution in front of S3 web bucket (HTTPS, custom domain)
 - Cognito hosted UI / SES email sender for verification emails

@@ -14,8 +14,8 @@ output "s3_web_app_website_url"  { value = aws_s3_bucket_website_configuration.w
 # # Outputs
 # # ---------------------------------------------------------------------------
 
-output "kms_key_arn"   { value = aws_kms_key.accio.arn }
-output "kms_key_alias" { value = aws_kms_alias.accio.name }
+output "kms_key_arn"   { value = aws_kms_key.strata.arn }
+output "kms_key_alias" { value = aws_kms_alias.strata.name }
 
 # # ---------------------------------------------------------------------------
 # # Outputs
@@ -33,9 +33,9 @@ output "dynamodb_clusters_table_arn" {
 # # Outputs — ARNs consumed by other Terraform files and the Lambda env var config
 # # ---------------------------------------------------------------------------
 
-output "lambda_role_arn"   { value = aws_iam_role.accio_lambda.arn }
-output "codebuild_role_arn" { value = aws_iam_role.accio_codebuild.arn }
-output "sfn_role_arn"      { value = aws_iam_role.accio_sfn.arn }
+output "lambda_role_arn"   { value = aws_iam_role.strata_lambda.arn }
+output "codebuild_role_arn" { value = aws_iam_role.strata_codebuild.arn }
+output "sfn_role_arn"      { value = aws_iam_role.strata_sfn.arn }
 
 
 # # ---------------------------------------------------------------------------
@@ -43,7 +43,7 @@ output "sfn_role_arn"      { value = aws_iam_role.accio_sfn.arn }
 # # ---------------------------------------------------------------------------
 
 output "cognito_user_pool_id" {
-  value       = aws_cognito_user_pool.accio.id
+  value       = aws_cognito_user_pool.strata.id
   description = "Cognito User Pool ID"
 }
 
@@ -53,6 +53,6 @@ output "cognito_client_id" {
 }
 
 output "cognito_domain" {
-  value       = "https://${aws_cognito_user_pool_domain.accio.domain}.auth.${local.region}.amazoncognito.com"
+  value       = "https://${aws_cognito_user_pool_domain.strata.domain}.auth.${local.region}.amazoncognito.com"
   description = "Cognito hosted UI base URL"
 }

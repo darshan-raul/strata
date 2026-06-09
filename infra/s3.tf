@@ -3,11 +3,11 @@
 # ---------------------------------------------------------------------------
 
 locals {
-  bucket_prefix = "accio"
+  bucket_prefix = "strata"
 }
 
 # ---------------------------------------------------------------------------
-# accio-tf-code  — Terraform module zips (one per provider)
+# strata-tf-code  — Terraform module zips (one per provider)
 # ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "tf_code" {
@@ -24,7 +24,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "tf_code" {
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.accio.arn
+      kms_master_key_id = aws_kms_key.strata.arn
     }
   }
 }
@@ -38,7 +38,7 @@ resource "aws_s3_bucket_public_access_block" "tf_code" {
 }
 
 # ---------------------------------------------------------------------------
-# accio-tf-state  — Per-cluster Terraform remote state
+# strata-tf-state  — Per-cluster Terraform remote state
 # ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "tf_state" {
@@ -55,7 +55,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "tf_state" {
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.accio.arn
+      kms_master_key_id = aws_kms_key.strata.arn
     }
   }
 }
@@ -70,7 +70,7 @@ resource "aws_s3_bucket_public_access_block" "tf_state" {
 }
 
 # ---------------------------------------------------------------------------
-# accio-outputs  — Per-cluster Terraform outputs (cluster_endpoint etc.)
+# strata-outputs  — Per-cluster Terraform outputs (cluster_endpoint etc.)
 # ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "outputs" {
@@ -87,7 +87,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "outputs" {
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.accio.arn
+      kms_master_key_id = aws_kms_key.strata.arn
     }
   }
 }
@@ -101,7 +101,7 @@ resource "aws_s3_bucket_public_access_block" "outputs" {
 }
 
 # ---------------------------------------------------------------------------
-# accio-agent-schemas  — OpenAPI YAML files for Bedrock action groups
+# strata-agent-schemas  — OpenAPI YAML files for Bedrock action groups
 # ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "agent_schemas" {
@@ -113,7 +113,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "agent_schemas" {
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.accio.arn
+      kms_master_key_id = aws_kms_key.strata.arn
     }
   }
 }
@@ -127,7 +127,7 @@ resource "aws_s3_bucket_public_access_block" "agent_schemas" {
 }
 
 # ---------------------------------------------------------------------------
-# accio-onboarding-cfn  — Public-readable CFN template for customer onboarding
+# strata-onboarding-cfn  — Public-readable CFN template for customer onboarding
 # ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "onboarding_cfn" {
@@ -167,7 +167,7 @@ resource "aws_s3_bucket_policy" "onboarding_cfn_public_read" {
   depends_on = [aws_s3_bucket_public_access_block.onboarding_cfn]
 }
 
-# Upload the CloudFormation template with AccioAccountId substituted at deploy time
+# Upload the CloudFormation template with StrataAccountId substituted at deploy time
 resource "aws_s3_object" "onboarding_cfn_template" {
   bucket       = aws_s3_bucket.onboarding_cfn.id
   key          = "onboarding_cfn.yaml"
@@ -177,7 +177,7 @@ resource "aws_s3_object" "onboarding_cfn_template" {
 }
 
 # ---------------------------------------------------------------------------
-# accio-web-app  — Flutter Web static bundle (served via CloudFront in v2)
+# strata-web-app  — Flutter Web static bundle (served via CloudFront in v2)
 # ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "web_app" {
@@ -226,19 +226,19 @@ resource "aws_s3_bucket_policy" "web_app_public_read" {
 # ---------------------------------------------------------------------------
 
 resource "aws_ssm_parameter" "tf_code_bucket" {
-  name  = "/accio/s3/tf-code-bucket"
+  name  = "/strata/s3/tf-code-bucket"
   type  = "String"
   value = aws_s3_bucket.tf_code.id
 }
 
 resource "aws_ssm_parameter" "tf_state_bucket" {
-  name  = "/accio/s3/tf-state-bucket"
+  name  = "/strata/s3/tf-state-bucket"
   type  = "String"
   value = aws_s3_bucket.tf_state.id
 }
 
 resource "aws_ssm_parameter" "outputs_bucket" {
-  name  = "/accio/s3/outputs-bucket"
+  name  = "/strata/s3/outputs-bucket"
   type  = "String"
   value = aws_s3_bucket.outputs.id
 }

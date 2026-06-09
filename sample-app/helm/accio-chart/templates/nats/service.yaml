@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats-headless
+  namespace: {{ include "Strata.namespace" . }}
+spec:
+  clusterIP: None
+  ports:
+    - name: client
+      port: 4222
+      targetPort: 4222
+    - name: monitoring
+      port: 8222
+      targetPort: 8222
+  selector:
+    app: nats
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats
+  namespace: {{ include "Strata.namespace" . }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: client
+      port: 4222
+      targetPort: 4222
+    - name: monitoring
+      port: 8222
+      targetPort: 8222
+  selector:
+    app: nats

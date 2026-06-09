@@ -2,8 +2,8 @@
 # Cognito User Pool
 # ---------------------------------------------------------------------------
 
-resource "aws_cognito_user_pool" "accio" {
-  name = "accio-platform-users"
+resource "aws_cognito_user_pool" "Strata" {
+  name = "Strata-platform-users"
 
   # Email is the primary identifier
   username_attributes      = ["email"]
@@ -62,7 +62,7 @@ resource "aws_cognito_user_pool" "accio" {
   }
 
   tags = {
-    Name = "accio-platform-users"
+    Name = "Strata-platform-users"
   }
 }
 
@@ -72,7 +72,7 @@ resource "aws_cognito_user_pool" "accio" {
 
 resource "aws_cognito_user_pool_client" "flutter" {
   name         = "observatory-flutter"
-  user_pool_id = aws_cognito_user_pool.accio.id
+  user_pool_id = aws_cognito_user_pool.Strata.id
 
   explicit_auth_flows = [
     "ALLOW_USER_SRP_AUTH",
@@ -82,11 +82,11 @@ resource "aws_cognito_user_pool_client" "flutter" {
 
   # OAuth / hosted-UI settings (used for GitHub redirect)
   callback_urls = [
-    "accio://callback",      # Android deep-link
+    "Strata://callback",      # Android deep-link
     "http://localhost:8080", # Flutter web dev #temp, move to main url
   ]
   logout_urls = [
-    "accio://logout",
+    "Strata://logout",
     "http://localhost:8080/logout",
   ]
 
@@ -127,9 +127,9 @@ resource "aws_cognito_user_pool_client" "flutter" {
 # User Pool Domain (needed for hosted UI / GitHub OAuth redirect)
 # ---------------------------------------------------------------------------
 
-resource "aws_cognito_user_pool_domain" "accio" {
-  domain       = "accio-observatory-${local.account_id}"
-  user_pool_id = aws_cognito_user_pool.accio.id
+resource "aws_cognito_user_pool_domain" "Strata" {
+  domain       = "Strata-observatory-${local.account_id}"
+  user_pool_id = aws_cognito_user_pool.Strata.id
 }
 
 # ---------------------------------------------------------------------------
@@ -137,22 +137,22 @@ resource "aws_cognito_user_pool_domain" "accio" {
 # ---------------------------------------------------------------------------
 
 resource "aws_ssm_parameter" "cognito_user_pool_id" {
-  name  = "/accio/cognito/user-pool-id"
+  name  = "/Strata/cognito/user-pool-id"
   type  = "String"
-  value = aws_cognito_user_pool.accio.id
+  value = aws_cognito_user_pool.Strata.id
 }
 
 resource "aws_ssm_parameter" "cognito_client_id" {
-  name  = "/accio/cognito/client-id"
+  name  = "/Strata/cognito/client-id"
   type  = "String"
   value = aws_cognito_user_pool_client.flutter.id
 }
 
 resource "aws_ssm_parameter" "platform_account_id" {
-  name        = "/accio/platform-account-id"
+  name        = "/Strata/platform-account-id"
   type        = "String"
   value       = local.account_id
-  description = "ACCIO platform AWS account ID — embedded in onboarding CFN template"
+  description = "Strata platform AWS account ID — embedded in onboarding CFN template"
 }
 
 

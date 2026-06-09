@@ -21,7 +21,7 @@ phases:
       - echo "Initializing Terraform..."
       - terraform init -backend-config="bucket=$TF_STATE_BUCKET" -backend-config="key=clusters/$CLUSTER_ID/terraform.tfstate" -backend-config="region=$REGION"
       - echo "Applying Terraform..."
-      - terraform apply -auto-approve -var="cluster_id=$CLUSTER_ID" -var="cluster_name=$CLUSTER_NAME" -var="aws_account_id=$AWS_ACCOUNT_ID" -var="region=$REGION" -var="instance_type=$INSTANCE_TYPE" -var="customer_role_arn=arn:aws:iam::$AWS_ACCOUNT_ID:role/accio-platform-provisioner" -var="external_id=accio-provisioner-v1"
+      - terraform apply -auto-approve -var="cluster_id=$CLUSTER_ID" -var="cluster_name=$CLUSTER_NAME" -var="aws_account_id=$AWS_ACCOUNT_ID" -var="region=$REGION" -var="instance_type=$INSTANCE_TYPE" -var="customer_role_arn=arn:aws:iam::$AWS_ACCOUNT_ID:role/Strata-platform-provisioner" -var="external_id=Strata-provisioner-v1"
   post_build:
     commands:
       - set -e

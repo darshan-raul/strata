@@ -1,73 +1,73 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  ACCIO Platform — Cross-account IAM roles for Observatory cluster provisioning.
+  Strata Platform — Cross-account IAM roles for Observatory cluster provisioning.
   Deploy this stack exactly once in your AWS account. It creates two IAM roles
-  that allow the ACCIO platform to provision and monitor EKS clusters on your
+  that allow the Strata platform to provision and monitor EKS clusters on your
   behalf. No IAM users or long-lived access keys are created.
 
 Parameters:
-  AccioAccountId:
+  StrataAccountId:
     Type: String
-    Default: "ACCIO_PLATFORM_ACCOUNT_ID"
+    Default: "STRATA_PLATFORM_ACCOUNT_ID"
     Description: >
-      The AWS Account ID of the ACCIO platform. Do NOT change this value.
-      It restricts role access exclusively to the ACCIO control plane.
+      The AWS Account ID of the Strata platform. Do NOT change this value.
+      It restricts role access exclusively to the Strata control plane.
     AllowedPattern: "[0-9]{12}"
     ConstraintDescription: Must be a valid 12-digit AWS Account ID.
 
 Resources:
 
   # ── Role 1: Provisioner ───────────────────────────────────────────────────
-  # Assumed by ACCIO's CodeBuild role during Terraform apply/destroy.
+  # Assumed by Strata's CodeBuild role during Terraform apply/destroy.
   # Grants AdministratorAccess so Terraform can create EKS, VPC, IAM, EC2.
-  # Will be scoped down to a least-privilege policy in v2 (issue ACCIO-88).
-  AccioPlatformProvisioner:
+  # Will be scoped down to a least-privilege policy in v2 (issue STRATA-88).
+  StrataPlatformProvisioner:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: accio-platform-provisioner
-      Description: "Assumed by ACCIO CodeBuild to run Terraform in this account"
+      RoleName: strata-platform-provisioner
+      Description: "Assumed by Strata CodeBuild to run Terraform in this account"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: TrustAccioCodeBuild
+          - Sid: TrustStrataCodeBuild
             Effect: Allow
             Principal:
-              AWS: !Sub "arn:aws:iam::${AccioAccountId}:role/accio-codebuild-role"
+              AWS: !Sub "arn:aws:iam::${StrataAccountId}:role/strata-codebuild-role"
             Action: sts:AssumeRole
             Condition:
               StringEquals:
                 # ExternalId prevents confused-deputy attacks.
                 # CodeBuild sends this value via --external-id in sts:assume_role.
-                sts:ExternalId: "accio-provisioner-v1"
+                sts:ExternalId: "strata-provisioner-v1"
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AdministratorAccess
       Tags:
         - Key: managed-by
-          Value: accio-platform
+          Value: strata-platform
         - Key: version
           Value: v1
 
   # ── Role 2: Reader ────────────────────────────────────────────────────────
-  # Assumed by ACCIO's Lambda functions to read cluster status and logs.
+  # Assumed by Strata's Lambda functions to read cluster status and logs.
   # Read-only: EKS describe, CloudWatch metrics, CloudWatch Logs for EKS.
-  AccioPlatformReader:
+  StrataPlatformReader:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: accio-platform-reader
-      Description: "Assumed by ACCIO Lambda to read cluster status and logs"
+      RoleName: strata-platform-reader
+      Description: "Assumed by Strata Lambda to read cluster status and logs"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: TrustAccioLambda
+          - Sid: TrustStrataLambda
             Effect: Allow
             Principal:
-              AWS: !Sub "arn:aws:iam::${AccioAccountId}:role/accio-lambda-role"
+              AWS: !Sub "arn:aws:iam::${StrataAccountId}:role/strata-lambda-role"
             Action: sts:AssumeRole
             Condition:
               StringEquals:
-                sts:ExternalId: "accio-reader-v1"
+                sts:ExternalId: "strata-reader-v1"
       Policies:
-        - PolicyName: accio-reader-policy
+        - PolicyName: strata-reader-policy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -105,7 +105,7 @@ Resources:
 
       Tags:
         - Key: managed-by
-          Value: accio-platform
+          Value: strata-platform
         - Key: version
           Value: v1
 
@@ -113,16 +113,16 @@ Outputs:
 
   ProvisionerRoleArn:
     Description: ARN of the provisioner role
-    Value: !GetAtt AccioPlatformProvisioner.Arn
+    Value: !GetAtt StrataPlatformProvisioner.Arn
     Export:
       Name: !Sub "${AWS::StackName}-ProvisionerRoleArn"
 
   ReaderRoleArn:
     Description: ARN of the reader role
-    Value: !GetAtt AccioPlatformReader.Arn
+    Value: !GetAtt StrataPlatformReader.Arn
     Export:
       Name: !Sub "${AWS::StackName}-ReaderRoleArn"
 
   StackStatus:
     Description: Confirmation message shown in Observatory app after stack creation
-    Value: "ACCIO IAM roles deployed successfully. Return to the Observatory app and tap Verify Setup."
+    Value: "Strata IAM roles deployed successfully. Return to the Observatory app and tap Verify Setup."

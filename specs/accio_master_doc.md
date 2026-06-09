@@ -1,8 +1,8 @@
-# ACCIO Platform — Master Design Document
+# Strata Platform — Master Design Document
 
 ## 1. Overall Idea for the App
 
-**Platform Codename:** ACCIO (App name: Observatory)
+**Platform Codename:** Strata (App name: Observatory)
 **Goal:** A fully managed, AI-assisted SaaS platform for developers and companies with existing GitHub codebases to create and maintain production-grade, cloud-native architectures in their own AWS accounts (with Azure and GCP planned). 
 
 ### Prerequisites:
@@ -14,7 +14,7 @@
 - **Continuous AI Agent:** A Bedrock AI agent continuously analyzes the codebase, auto-instruments code (OpenTelemetry), injects missing tracing/logging, generates Dockerfiles and Kubernetes manifests, and provides a natural language interface for cluster monitoring, debugging, and maintenance.
 - **GitOps First:** Infrastructure is provisioned via Terraform, but application deployment is managed via ArgoCD syncing from an automatically generated "ops repo".
 - **Multi-Platform Frontend:** A Flutter-based application. The web frontend (hosted on Vercel) handles onboarding (GitHub OAuth, AWS CloudFormation deep-linking), while the mobile app (Android first) is used for continuous cluster monitoring and interacting with the AI Co-Pilot.
-- **Serverless Backend:** The ACCIO control plane is completely serverless, utilizing AWS API Gateway, Lambda, Step Functions, DynamoDB, CodeBuild, and Bedrock.
+- **Serverless Backend:** The Strata control plane is completely serverless, utilizing AWS API Gateway, Lambda, Step Functions, DynamoDB, CodeBuild, and Bedrock.
 - **Demo Target:** The sample app used to test the deployment will be a Kubernetes mirror of the serverless backend.
 
 ---
@@ -32,7 +32,7 @@
 - **Multi-cloud:** AWS v1 (live), Azure + GCP behind feature flags
 
 ### Architecture Components & Decisions
-- **Cross-Account Provisioning:** ACCIO operates in a central control-plane AWS account. It provisions resources in the customer's AWS account by assuming IAM roles (`accio-platform-provisioner` and `accio-platform-reader`) created via a CloudFormation template deployed by the user during onboarding. This is secured via per-user `external_id` conditions to prevent confused deputy attacks.
+- **Cross-Account Provisioning:** Strata operates in a central control-plane AWS account. It provisions resources in the customer's AWS account by assuming IAM roles (`Strata-platform-provisioner` and `Strata-platform-reader`) created via a CloudFormation template deployed by the user during onboarding. This is secured via per-user `external_id` conditions to prevent confused deputy attacks.
 - **GitHub Integration:** Uses OAuth2 (not OIDC) to get a user access token for accessing repos and pulling code context. The platform instructs users to create an "ops repo" for GitOps to avoid asking for overly broad write permissions to user organizations.
 - **Orchestration Engine:** Step Functions handles the long-running EKS provisioning process. It uses CodeBuild to run Terraform (`apply` and `destroy`) and uses the `waitForTaskToken` pattern to pause the state machine until CodeBuild finishes.
 - **AI Agent:** Uses AWS Bedrock Agents. An `agent_proxy` Lambda relays messages from API Gateway, and an `agent_tools` Lambda acts as the Action Group for the agent, allowing it to query EKS, CloudWatch logs, and GitHub.
@@ -44,7 +44,7 @@
 
 ### Workflow 1: Initial Onboarding
 1. **Sign Up:** User creates an account via Cognito. A unique `external_id` is generated and stored in DynamoDB and Cognito custom attributes.
-2. **Connect GitHub:** User connects GitHub via OAuth2. The access token is stored securely in Secrets Manager (`accio/users/{user_id}/github`).
+2. **Connect GitHub:** User connects GitHub via OAuth2. The access token is stored securely in Secrets Manager (`Strata/users/{user_id}/github`).
 3. **AWS IAM Setup:** User inputs their 12-digit AWS Account ID. The backend generates a pre-signed CloudFormation deep-link containing their `external_id`. The user deploys this in their AWS account to create cross-account IAM roles. The app verifies the setup by attempting an `sts:AssumeRole`.
 
 ```mermaid
@@ -62,7 +62,7 @@ sequenceDiagram
     User->>CustomerAccount: Deploy CloudFormation Stack (creates IAM roles)
     User->>App: Tap "Verify Setup"
     App->>APIGW: GET /onboarding/verify-iam
-    APIGW->>OnboardingLambda: sts:AssumeRole(accio-platform-reader, ExternalId)
+    APIGW->>OnboardingLambda: sts:AssumeRole(Strata-platform-reader, ExternalId)
     OnboardingLambda-->>App: { verified: true }
 ```
 
@@ -127,7 +127,7 @@ Build vertically (thin slices end-to-end) rather than horizontally.
 
 ### 4.2 Repository Layout
 ```text
-accio/
+Strata/
 ├── flutter_app/                        # Observatory app — Android + Web
 ├── lambdas/
 │   ├── orchestrator/                   # validate + write DDB + start SFN
@@ -135,7 +135,7 @@ accio/
 │   ├── argocd_deployer/                # Helm install + ArgoCD API registration
 │   ├── agent_proxy/                    # Bedrock Agent relay
 │   └── agent_tools/                    # K8s queries via EKS API + cloud monitors
-├── infra/                              # Always-on ACCIO account infrastructure (Terraform)
+├── infra/                              # Always-on Strata account infrastructure (Terraform)
 ├── terraform/                          # EKS cluster module — zipped to S3 for CodeBuild
 │   ├── aws/                            # aws modules
 │   ├── azure/                          # azure stub (feature flag)
@@ -167,11 +167,11 @@ accio/
 - `PUT /users/me/github-token` - Store GitHub token (orchestrator Lambda)
 
 ### 4.5 Secrets Manager Convention
-All secrets encrypted with platform KMS key. Lambda IAM scopes limit access to `accio/users/{sub}/*`.
-- `accio/users/{user_id}/aws` → `{ "account_id": "..." }`
-- `accio/users/{user_id}/azure` → `{ "tenant_id", "client_id", "client_secret", "subscription_id" }`
-- `accio/users/{user_id}/gcp` → `{ "service_account_json": "..." }`
-- `accio/users/{user_id}/github` → `{ "token": "..." }`
+All secrets encrypted with platform KMS key. Lambda IAM scopes limit access to `Strata/users/{sub}/*`.
+- `Strata/users/{user_id}/aws` → `{ "account_id": "..." }`
+- `Strata/users/{user_id}/azure` → `{ "tenant_id", "client_id", "client_secret", "subscription_id" }`
+- `Strata/users/{user_id}/gcp` → `{ "service_account_json": "..." }`
+- `Strata/users/{user_id}/github` → `{ "token": "..." }`
 
 ### 4.6 Flutter App Specifications
 - **Theme:** Dark navy background (`#0A0E1A`), card surfaces (`#111827`), cyan accent (`#60A5FA`), success green (`#34D399`), warning amber (`#FBBF24`), danger red (`#F87171`).

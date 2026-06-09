@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog-service
+  namespace: {{ include "Strata.namespace" . }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.catalogService.service.port }}
+      targetPort: {{ .Values.catalogService.service.port }}
+  selector:
+    app: catalog-service

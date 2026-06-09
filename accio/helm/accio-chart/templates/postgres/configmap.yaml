@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: postgres-config
-  namespace: {{ include "accio.namespace" . }}
-data:
-  POSTGRES_USER: {{ .Values.postgres.env.user | quote }}
-  POSTGRES_DB: {{ .Values.postgres.env.database | quote }}

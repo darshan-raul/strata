@@ -5,7 +5,7 @@
 variable "aws_region" {
   type        = string
   default     = "ap-south-1"
-  description = "Primary AWS region for the ACCIO platform"
+  description = "Primary AWS region for the Strata platform"
 }
 
 variable "environment" {

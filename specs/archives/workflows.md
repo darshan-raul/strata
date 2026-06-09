@@ -1,4 +1,4 @@
-# ACCIO Platform — Workflows
+# Strata Platform — Workflows
 
 ---
 
@@ -46,11 +46,11 @@ The target user is a developer or team who has an existing codebase and wants a 
 3. App opens an in-app WebView to the GitHub OAuth2 authorization URL:
    ```
    https://github.com/login/oauth/authorize
-     ?client_id=<ACCIO_GITHUB_APP_CLIENT_ID>
+     ?client_id=<STRATA_GITHUB_APP_CLIENT_ID>
      &scope=repo,read:user
      &state=<csrf_token>
    ```
-4. User authorizes the app on GitHub. GitHub redirects to the registered callback URI (`accio://callback?code=<code>&state=<state>`).
+4. User authorizes the app on GitHub. GitHub redirects to the registered callback URI (`strata://callback?code=<code>&state=<state>`).
 5. App intercepts the callback, validates the `state`, and sends `code` to the backend:
    ```
    PUT /users/me/github-token
@@ -58,7 +58,7 @@ The target user is a developer or team who has an existing codebase and wants a 
    ```
 6. The `orchestrator` Lambda:
    - Exchanges the code for an access token via `POST https://github.com/login/oauth/access_token`.
-   - Stores the token in Secrets Manager: `accio/users/{user_id}/github → { "token": "..." }`.
+   - Stores the token in Secrets Manager: `strata/users/{user_id}/github → { "token": "..." }`.
    - Stores `custom:github_connected = "true"` as a Cognito custom attribute.
 7. App navigates to Step 3.
 
@@ -66,7 +66,7 @@ The target user is a developer or team who has an existing codebase and wants a 
 
 ### Step 3 — Cloud Credentials (AWS IAM via CloudFormation)
 
-**Goal:** Grant ACCIO's AWS account the ability to create resources in the customer's AWS account, using a cross-account IAM role with a per-user `external_id`.
+**Goal:** Grant Strata's AWS account the ability to create resources in the customer's AWS account, using a cross-account IAM role with a per-user `external_id`.
 
 #### 3a. User enters AWS Account ID
 
@@ -83,13 +83,13 @@ GET /onboarding/cloudformation-url?account_id={aws_account_id}
 
 A dedicated **`onboarding` Lambda** handles this:
 1. Reads the user's `external_id` from DynamoDB (`users` table, keyed by Cognito `sub`).
-2. Generates a **pre-signed S3 URL** (TTL: 1 hour) pointing to the `onboarding_cfn.yaml` template stored in the ACCIO platform S3 bucket.
+2. Generates a **pre-signed S3 URL** (TTL: 1 hour) pointing to the `onboarding_cfn.yaml` template stored in the Strata platform S3 bucket.
 3. Constructs the one-click AWS Console deep-link, embedding the `external_id` as a CloudFormation parameter:
    ```
    https://console.aws.amazon.com/cloudformation/home#/stacks/create/review
      ?templateURL=<presigned-s3-url>
-     &stackName=accio-platform-roles
-     &param_AccioAccountId=<ACCIO_PLATFORM_ACCOUNT_ID>
+     &stackName=strata-platform-roles
+     &param_StrataAccountId=<STRATA_PLATFORM_ACCOUNT_ID>
      &param_ExternalId=<user_external_id>
    ```
 4. Returns `{ "cloudformation_url": "...", "external_id": "..." }` to the Flutter app.
@@ -106,14 +106,14 @@ The `onboarding_cfn.yaml` creates two IAM roles in the customer's account:
 
 | Role | Purpose |
 |------|---------|
-| `accio-platform-provisioner` | Assumed by CodeBuild/Step Functions — has permissions to create VPC, EKS, IAM, etc. |
-| `accio-platform-reader` | Assumed by status_checker + agent_tools Lambdas — read-only EKS/CloudWatch access. |
+| `strata-platform-provisioner` | Assumed by CodeBuild/Step Functions — has permissions to create VPC, EKS, IAM, etc. |
+| `strata-platform-reader` | Assumed by status_checker + agent_tools Lambdas — read-only EKS/CloudWatch access. |
 
-Both roles have a trust policy scoped to ACCIO's AWS account with the user's unique `external_id`:
+Both roles have a trust policy scoped to Strata's AWS account with the user's unique `external_id`:
 ```json
 {
   "Effect": "Allow",
-  "Principal": { "AWS": "arn:aws:iam::<ACCIO_ACCOUNT_ID>:root" },
+  "Principal": { "AWS": "arn:aws:iam::<STRATA_ACCOUNT_ID>:root" },
   "Action": "sts:AssumeRole",
   "Condition": { "StringEquals": { "sts:ExternalId": "<user_external_id>" } }
 }
@@ -125,7 +125,7 @@ Both roles have a trust policy scoped to ACCIO's AWS account with the user's uni
 2. App polls `GET /onboarding/verify-iam?account_id={id}` (max 5 retries, 10s apart).
 3. The `onboarding` Lambda:
    - Fetches the user's `external_id` from DynamoDB.
-   - Calls `sts:AssumeRole` against `arn:aws:iam::{aws_account_id}:role/accio-platform-reader` using the `external_id`.
+   - Calls `sts:AssumeRole` against `arn:aws:iam::{aws_account_id}:role/strata-platform-reader` using the `external_id`.
    - Returns `{ "verified": true }` on success, `{ "verified": false, "reason": "..." }` on failure.
 4. On verified → stores `custom:aws_account_id` in Cognito + `aws_account_id` in DynamoDB `users` table → navigates to Dashboard.
 
@@ -170,7 +170,7 @@ Step Functions — provision_cluster.asl.json
     │                      - Terraform module zipped in S3
     │                      - Variables: cluster_name, region, instance_type,
     │                        aws_account_id, external_id
-    │               └─ CodeBuild assumes accio-platform-provisioner role
+    │               └─ CodeBuild assumes strata-platform-provisioner role
     │                  (cross-account, using external_id) to run terraform apply
     │               └─ On success: sends task token back → SFN continues
     │               └─ Terraform outputs: cluster_endpoint, argocd_url,
@@ -179,7 +179,7 @@ Step Functions — provision_cluster.asl.json
     ├─► UpdateStatusValidating (DynamoDB: status=VALIDATING, step=CLUSTER_HEALTH_CHECK)
     │
     ├─► ValidateCluster
-    │       └─ status_checker Lambda: assumes accio-platform-reader,
+    │       └─ status_checker Lambda: assumes strata-platform-reader,
     │          calls eks:DescribeCluster, waits for ACTIVE status
     │
     ├─► UpdateStatusInstallingArgoCD (DynamoDB: status=INSTALLING_ARGOCD, step=HELM_ARGOCD)
@@ -305,7 +305,7 @@ health_monitor Lambda (new Lambda, not in current spec — add to spec)
     ├─► Scans DynamoDB clusters table for all clusters with status=READY
     │
     ├─► For each cluster:
-    │       1. Assumes accio-platform-reader in customer account (using external_id)
+    │       1. Assumes Strata-platform-reader in customer account (using external_id)
     │       2. Calls eks:DescribeCluster → checks cluster status
     │       3. Calls CloudWatch GetMetricStatistics for:
     │              - node_cpu_utilization > 80% threshold
@@ -340,7 +340,7 @@ agent_proxy Lambda → Bedrock Agent
          ├─► Bedrock Agent calls agent_tools Lambda with appropriate api_path:
          │       /health, /pods, /logs, /metrics
          │
-         ├─► agent_tools Lambda assumes accio-platform-reader,
+         ├─► agent_tools Lambda assumes strata-platform-reader,
          │   queries EKS/CloudWatch in real time
          │
          └─► Bedrock Agent synthesizes a natural-language response back to the user
@@ -384,7 +384,7 @@ Step Functions — deprovision_cluster.asl.json
     │
     ├─► RunTerraformDestroy
     │       └─ StartCodeBuild Lambda (waitForTaskToken) runs terraform destroy
-    │          in customer account using accio-platform-provisioner role
+    │          in customer account using strata-platform-provisioner role
     │
     ├─► CleanupArgoCD (optional — delete ArgoCD Application record)
     │

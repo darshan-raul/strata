@@ -1,10 +1,10 @@
 resource "aws_sfn_state_machine" "provision_cluster" {
-  name     = "accio-provision-cluster"
-  role_arn = aws_iam_role.accio_sfn.arn
+  name     = "strata-provision-cluster"
+  role_arn = aws_iam_role.strata_sfn.arn
   type     = "STANDARD"
 
   definition = jsonencode({
-    "Comment" : "ACCIO cluster provisioning — MVP step functions",
+    "Comment" : "Strata cluster provisioning — MVP step functions",
     "StartAt" : "UpdateStatusProvisioning",
     "States" : {
       "UpdateStatusProvisioning" : {

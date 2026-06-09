@@ -1,9 +1,9 @@
-# ACCIO (Observatory)
+# Strata
 
-A fully managed, AI-assisted SaaS platform for developers and companies with existing GitHub codebases to create and maintain production-grade, cloud-native architectures in their own AWS accounts.
+Cloud-native infrastructure is built in layers — compute, network, storage, orchestration, observability. Each layer has its own objects, its own state, its own drift. Strata is the platform that helps you see, query, and manage across all those layers at once.
 
-<!-- IMAGE: ACCIO Platform Architecture Overview -->
-![ACCIO Architecture](./diagrams/clusterprovision.png)
+<!-- IMAGE: Strata Platform Architecture Overview -->
+![Strata Architecture](./diagrams/clusterprovision.png)
 
 ---
 
@@ -21,7 +21,7 @@ A fully managed, AI-assisted SaaS platform for developers and companies with exi
 
 ## Overview
 
-ACCIO provisions production-grade EKS clusters in customer AWS accounts via GitOps and a serverless control plane. Users connect their GitHub repos and AWS accounts, and ACCIO handles the rest — infrastructure provisioning, ArgoCD setup, and continuous monitoring with an AI-powered Co-Pilot.
+Strata provisions production-grade EKS clusters in customer AWS accounts via GitOps and a serverless control plane. Users connect their GitHub repos and AWS accounts, and Strata handles the rest — infrastructure provisioning, ArgoCD setup, and continuous monitoring with an AI-powered Co-Pilot.
 
 ### Prerequisites
 
@@ -42,7 +42,7 @@ graph TB
         CustomerS3[S3 - Ops Repo]
     end
 
-    subgraph "ACCIO Control Plane (Platform AWS Account)"
+    subgraph "Strata Control Plane (Platform AWS Account)"
         FlutterApp[Flutter App]
         APIGW[API Gateway]
         Cognito[Cognito]
@@ -93,7 +93,7 @@ sequenceDiagram
 
 ### Sample Application Architecture
 
-The sample application mirrors the ACCIO serverless backend as a cloud-native Kubernetes deployment:
+The sample application mirrors the Strata serverless backend as a cloud-native Kubernetes deployment:
 
 <!-- IMAGE: Sample App Flow -->
 ![Sample App Architecture](./diagrams/sampleappflow.png)
@@ -125,7 +125,7 @@ graph TD
 1. User signs up via Flutter app (Cognito)
 2. User connects GitHub via OAuth2 (token stored in Secrets Manager)
 3. User deploys `onboarding_cfn.yaml` to their AWS account (creates cross-account IAM roles)
-4. ACCIO verifies IAM setup via `sts:AssumeRole`
+4. Strata verifies IAM setup via `sts:AssumeRole`
 
 ### 2. AI Code Analysis (Optional)
 
@@ -157,7 +157,7 @@ User triggers delete from app → `orchestrator` updates status to `DELETING` �
 
 ## Sample Application
 
-The `accio/` directory contains a sample application that serves as a deployment target for ACCIO-provisioned EKS clusters. It is a cloud-native mirror of the ACCIO serverless backend.
+The `sample-app/` directory contains a sample application that serves as a deployment target for Strata-provisioned EKS clusters. It is a cloud-native mirror of the Strata serverless backend.
 
 ### Services
 
@@ -183,11 +183,11 @@ The `accio/` directory contains a sample application that serves as a deployment
 
 ```bash
 # Local Docker Compose development
-docker-compose -f accio/docker-compose.yml up
+docker-compose -f sample-app/docker-compose.yml up
 
 # Kind cluster development
 kind create cluster
-cd accio && tilt up
+cd sample-app && tilt up
 ```
 
 ### Running CI Workflows Locally
@@ -233,7 +233,7 @@ act --action-offline-mode
 
 ### Setup
 
-1. **Deploy ACCIO Control Plane (Infrastructure)**
+1. **Deploy Strata Control Plane (Infrastructure)**
    ```bash
    cd infra
    terraform init
@@ -249,12 +249,12 @@ act --action-offline-mode
 
 3. **Run Sample App Locally**
    ```bash
-   docker-compose -f accio/docker-compose.yml up
+   docker-compose -f sample-app/docker-compose.yml up
    ```
 
 4. **Deploy Sample App to EKS (after cluster provisioning)**
    ```bash
-   # ArgoCD syncs from accio/k8s/ manifests
+   # ArgoCD syncs from sample-app/k8s/ manifests
    ```
 
 ---
@@ -264,14 +264,14 @@ act --action-offline-mode
 ```
 ├── .github/
 │   └── workflows/          # CI/CD workflows
-├── accio/                  # Sample application (EKS deployment target)
+├── sample-app/             # Sample application (EKS deployment target)
 │   ├── services/           # Go microservices
 │   ├── portal-ui/          # React frontend
 │   ├── docker-compose.yml  # Local development
 │   └── Tiltfile            # Kind cluster development
 ├── flutter_app/            # Flutter mobile + web app
-├── infra/                  # ACCIO control plane Terraform
-├── lambdas/                # ACCIO serverless backend (Python)
+├── infra/                  # Strata control plane Terraform
+├── lambdas/                # Strata serverless backend (Python)
 │   └── orchestrator/       # Only lambda implemented
 ├── terraform/
 │   └── aws/                # EKS cluster Terraform module
@@ -285,10 +285,10 @@ act --action-offline-mode
 
 ## Documentation
 
-- [Master Design Document](./specs/accio_master_doc.md) — Full platform specification
+- [Master Design Document](./specs/strata_master_doc.md) — Full platform specification
 - [Sample App Architecture](./specs/sample_app_architecture.md) — Sample app design
 - [AGENTS.md](./AGENTS.md) — Developer instructions for AI assistants
-- [accio/AGENTS.md](./accio/AGENTS.md) — Sample app Go services lint rules
+- [sample-app/AGENTS.md](./sample-app/AGENTS.md) — Sample app Go services lint rules
 
 ---
 

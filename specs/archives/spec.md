@@ -1,6 +1,6 @@
-# ACCIO Platform — Master Code Spec
+# Strata Platform — Master Code Spec
 **App name:** Observatory  
-**Platform codename:** ACCIO  
+**Platform codename:** Strata  
 **Version:** 3.0 — Final, Claude Code ready  
 **Stack:** Flutter (Android + Web) · AWS Cognito · API Gateway · Lambda · Step Functions · CodeBuild · DynamoDB · S3 · Secrets Manager · EKS · ArgoCD · Bedrock Agent (Claude 3 Sonnet)  
 **Multi-cloud:** AWS v1 (live), Azure + GCP behind feature flag  
@@ -10,7 +10,7 @@
 ## SECTION 1 — REPOSITORY LAYOUT
 
 ```
-accio/
+Strata/
 ├── flutter_app/                        # Observatory app — Android + Web
 │   ├── lib/
 │   │   ├── main.dart
@@ -61,7 +61,7 @@ accio/
 │       ├── handler.py
 │       └── requirements.txt
 │
-├── infra/                              # Always-on ACCIO account infrastructure
+├── infra/                              # Always-on Strata account infrastructure
 │   ├── main.tf
 │   ├── cognito.tf
 │   ├── api_gateway.tf
@@ -134,11 +134,11 @@ enum AppTab { dashboard, clusters, copilot }
      ```
      https://console.aws.amazon.com/cloudformation/home#/stacks/create/review
        ?templateURL=<presigned-s3-url>
-       &stackName=accio-platform-roles
-       &param_AccioAccountId=<ACCIO_PLATFORM_ACCOUNT_ID>
+       &stackName=Strata-platform-roles
+       &param_StrataAccountId=<ACCIO_PLATFORM_ACCOUNT_ID>
      ```
   3. App displays a **step-by-step guidance panel** (see Section 12 for full copy).
-  4. A **"Verify Setup"** button polls `GET /onboarding/verify-iam?account_id={id}` — backend runs `sts:AssumeRole` against `accio-platform-reader`; returns `{ verified: true/false }`.
+  4. A **"Verify Setup"** button polls `GET /onboarding/verify-iam?account_id={id}` — backend runs `sts:AssumeRole` against `Strata-platform-reader`; returns `{ verified: true/false }`.
   5. On verified → account ID stored via Cognito custom attribute `custom:aws_account_id` → proceed.
 - **Azure card** — Coming Soon (feature flag `ENABLE_AZURE=false`):
   - Card is rendered with a semi-transparent overlay and a `Coming Soon` badge (amber pill, top-right corner).
@@ -407,8 +407,8 @@ resource "aws_dynamodb_table" "clusters" {
 ## SECTION 5 — COGNITO
 
 ```hcl
-resource "aws_cognito_user_pool" "accio" {
-  name = "accio-platform-users"
+resource "aws_cognito_user_pool" "Strata" {
+  name = "Strata-platform-users"
 
   password_policy {
     minimum_length    = 8
@@ -433,12 +433,12 @@ resource "aws_cognito_user_pool" "accio" {
 
 resource "aws_cognito_user_pool_client" "flutter" {
   name         = "observatory-flutter"
-  user_pool_id = aws_cognito_user_pool.accio.id
+  user_pool_id = aws_cognito_user_pool.Strata.id
   explicit_auth_flows = [
     "ALLOW_USER_SRP_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH"
   ]
-  callback_urls = ["accio://callback"]
+  callback_urls = ["Strata://callback"]
   allowed_oauth_flows        = ["code"]
   allowed_oauth_scopes       = ["openid", "email", "profile"]
   generate_secret            = false
@@ -453,13 +453,13 @@ Credentials for non-AWS cloud providers stored per user.
 
 ```
 Secret naming convention:
-  accio/users/{user_id}/aws          → { "account_id": "..." }
-  accio/users/{user_id}/azure        → { "tenant_id", "client_id", "client_secret", "subscription_id" }
-  accio/users/{user_id}/gcp          → { "service_account_json": "..." }
-  accio/users/{user_id}/github       → { "token": "..." }
+  Strata/users/{user_id}/aws          → { "account_id": "..." }
+  Strata/users/{user_id}/azure        → { "tenant_id", "client_id", "client_secret", "subscription_id" }
+  Strata/users/{user_id}/gcp          → { "service_account_json": "..." }
+  Strata/users/{user_id}/github       → { "token": "..." }
 ```
 
-All secrets encrypted with platform KMS key. IAM policy scopes Lambda access to `accio/users/{sub}/*` only.
+All secrets encrypted with platform KMS key. IAM policy scopes Lambda access to `Strata/users/{sub}/*` only.
 
 ---
 
@@ -490,7 +490,7 @@ def lambda_handler(event, context):
         body  = json.loads(event.get("body", "{}"))
         token = body.get("token", "")
         sm.put_secret_value(
-            SecretId=f"accio/users/{user_id}/github",
+            SecretId=f"Strata/users/{user_id}/github",
             SecretString=json.dumps({"token": token})
         )
         return _resp(200, {"status": "ok"})
@@ -611,7 +611,7 @@ def _dashboard_summary(user_id):
 def _assume_role(aws_acct):
     sts  = boto3.client("sts")
     cred = sts.assume_role(
-        RoleArn=f"arn:aws:iam::{aws_acct}:role/accio-platform-reader",
+        RoleArn=f"arn:aws:iam::{aws_acct}:role/Strata-platform-reader",
         RoleSessionName="status-check"
     )["Credentials"]
     return {
@@ -667,7 +667,7 @@ def lambda_handler(event, context):
     admin_pass   = event["terraform_output"]["argocd_admin_password"]
 
     # Fetch user GitHub token from Secrets Manager
-    secret      = sm.get_secret_value(SecretId=f"accio/users/{user_id}/github")
+    secret      = sm.get_secret_value(SecretId=f"Strata/users/{user_id}/github")
     github_tok  = json.loads(secret["SecretString"])["token"]
     github_repo = event["github_repo"]
 
@@ -789,7 +789,7 @@ def _query_aws(api_path, cluster_id, user_id):
 
     sts  = boto3.client("sts")
     cred = sts.assume_role(
-        RoleArn=f"arn:aws:iam::{aws_acct}:role/accio-platform-reader",
+        RoleArn=f"arn:aws:iam::{aws_acct}:role/Strata-platform-reader",
         RoleSessionName="agent-tools"
     )["Credentials"]
 
@@ -882,7 +882,7 @@ def _agent_resp(text):
 
 ```json
 {
-  "Comment": "ACCIO cluster provisioning — Terraform + validation + ArgoCD",
+  "Comment": "Strata cluster provisioning — Terraform + validation + ArgoCD",
   "StartAt": "UpdateStatusProvisioning",
   "States": {
 
@@ -1059,7 +1059,7 @@ phases:
     commands:
       - |
         CREDS=$(aws sts assume-role \
-          --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/accio-platform-provisioner" \
+          --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/Strata-platform-provisioner" \
           --role-session-name "codebuild-${CLUSTER_ID}" \
           --query Credentials --output json)
         export AWS_ACCESS_KEY_ID=$(echo $CREDS | python3 -c "import sys,json; print(json.load(sys.stdin)['AccessKeyId'])")
@@ -1198,7 +1198,7 @@ output "argocd_initial_password" { value = "" }
 ### System prompt (`infra/agent_prompt.txt`)
 
 ```
-You are the Observatory Co-Pilot, an intelligent infrastructure operations assistant for the ACCIO platform.
+You are the Observatory Co-Pilot, an intelligent infrastructure operations assistant for the Strata platform.
 
 You help users monitor and understand their Kubernetes clusters across AWS EKS, Azure AKS, and GCP GKE.
 
@@ -1293,11 +1293,11 @@ paths:
 
 ### Overview
 
-The ACCIO platform operates from a **central ACCIO AWS account**. It needs cross-account access into each **customer AWS account** to:
-- **Provision** EKS clusters (via CodeBuild → Terraform running as `accio-platform-provisioner`)
-- **Read** cluster status, metrics, and logs (via Lambda STS assume-role as `accio-platform-reader`)
+The Strata platform operates from a **central Strata AWS account**. It needs cross-account access into each **customer AWS account** to:
+- **Provision** EKS clusters (via CodeBuild → Terraform running as `Strata-platform-provisioner`)
+- **Read** cluster status, metrics, and logs (via Lambda STS assume-role as `Strata-platform-reader`)
 
-Customers deploy a CloudFormation stack that creates exactly these two IAM roles, each with a trust policy pinned to ACCIO's specific IAM roles. No IAM users, long-lived keys, or broad account-wide access is granted.
+Customers deploy a CloudFormation stack that creates exactly these two IAM roles, each with a trust policy pinned to Strata's specific IAM roles. No IAM users, long-lived keys, or broad account-wide access is granted.
 
 ---
 
@@ -1322,8 +1322,8 @@ The Flutter app renders this guidance panel after the user taps **"Generate Setu
 │                                                          │
 │  STEP 2 — Review Stack Parameters                        │
 │  The template is pre-filled. Do NOT change the           │
-│  AccioAccountId parameter — it is locked to the          │
-│  ACCIO platform account and cannot be edited.            │
+│  StrataAccountId parameter — it is locked to the          │
+│  Strata platform account and cannot be edited.            │
 │                                                          │
 │  STEP 3 — Acknowledge IAM Resources                      │
 │  Scroll to the bottom of the CloudFormation page.        │
@@ -1347,14 +1347,14 @@ The Flutter app renders this guidance panel after the user taps **"Generate Setu
 
 The collapsible **"View IAM roles"** section renders:
 ```
-Role 1 — accio-platform-provisioner
-  Purpose : Allows ACCIO to run Terraform (create/delete EKS clusters)
-  Trusted by : arn:aws:iam::<ACCIO_ACCOUNT>:role/accio-codebuild-role
+Role 1 — Strata-platform-provisioner
+  Purpose : Allows Strata to run Terraform (create/delete EKS clusters)
+  Trusted by : arn:aws:iam::<STRATA_ACCOUNT>:role/Strata-codebuild-role
   Permissions : AdministratorAccess (scoped down in v2)
 
-Role 2 — accio-platform-reader
-  Purpose : Allows ACCIO to read cluster status and logs
-  Trusted by : arn:aws:iam::<ACCIO_ACCOUNT>:role/accio-lambda-role
+Role 2 — Strata-platform-reader
+  Purpose : Allows Strata to read cluster status and logs
+  Trusted by : arn:aws:iam::<STRATA_ACCOUNT>:role/Strata-lambda-role
   Permissions : eks:Describe*, cloudwatch:GetMetric*, logs:FilterLogEvents
 ```
 
@@ -1362,12 +1362,12 @@ Role 2 — accio-platform-reader
 
 ### Backend: CloudFormation URL generation (`GET /onboarding/cloudformation-url`)
 
-A lightweight Lambda reads the `AccioAccountId` from `SSM Parameter Store` (`/accio/platform-account-id`) and returns:
+A lightweight Lambda reads the `StrataAccountId` from `SSM Parameter Store` (`/Strata/platform-account-id`) and returns:
 
 ```json
 {
-  "template_url": "https://accio-onboarding-cfn.s3.ap-south-1.amazonaws.com/onboarding_cfn.yaml",
-  "console_url": "https://console.aws.amazon.com/cloudformation/home#/stacks/create/review?templateURL=https%3A%2F%2Faccio-onboarding-cfn...&stackName=accio-platform-roles&param_AccioAccountId=<ACCIO_ACCOUNT_ID>"
+  "template_url": "https://Strata-onboarding-cfn.s3.ap-south-1.amazonaws.com/onboarding_cfn.yaml",
+  "console_url": "https://console.aws.amazon.com/cloudformation/home#/stacks/create/review?templateURL=https%3A%2F%2Fstrata-onboarding-cfn...&stackName=Strata-platform-roles&param_StrataAccountId=<STRATA_ACCOUNT_ID>"
 }
 ```
 
@@ -1383,7 +1383,7 @@ def _verify_iam(user_id, aws_account_id):
     sts = boto3.client("sts")
     try:
         sts.assume_role(
-            RoleArn=f"arn:aws:iam::{aws_account_id}:role/accio-platform-reader",
+            RoleArn=f"arn:aws:iam::{aws_account_id}:role/Strata-platform-reader",
             RoleSessionName="verify-onboarding",
             DurationSeconds=900,
         )
@@ -1403,77 +1403,77 @@ def _verify_iam(user_id, aws_account_id):
 
 ### Customer CloudFormation template (`onboarding_cfn.yaml`)
 
-This file lives at `accio/onboarding_cfn.yaml` and is uploaded to S3 bucket `accio-onboarding-cfn` during platform deployment.
+This file lives at `Strata/onboarding_cfn.yaml` and is uploaded to S3 bucket `Strata-onboarding-cfn` during platform deployment.
 
 ```yaml
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  ACCIO Platform — Cross-account IAM roles for Observatory cluster provisioning.
+  Strata Platform — Cross-account IAM roles for Observatory cluster provisioning.
   Deploy this stack exactly once in your AWS account. It creates two read-scoped
-  IAM roles that allow the ACCIO platform to provision and monitor EKS clusters
+  IAM roles that allow the Strata platform to provision and monitor EKS clusters
   on your behalf. No IAM users or long-lived access keys are created.
 
 Parameters:
-  AccioAccountId:
+  StrataAccountId:
     Type: String
     Default: "ACCIO_PLATFORM_ACCOUNT_ID"   # replaced at build time by platform Lambda
     Description: >
-      The AWS Account ID of the ACCIO platform. Do NOT change this value.
-      It restricts role access exclusively to the ACCIO control plane.
+      The AWS Account ID of the Strata platform. Do NOT change this value.
+      It restricts role access exclusively to the Strata control plane.
 
 Resources:
 
   # ── Role 1: Provisioner ──────────────────────────────────────────────────
-  # Assumed by ACCIO's CodeBuild role during Terraform apply/destroy.
+  # Assumed by Strata's CodeBuild role during Terraform apply/destroy.
   # Needs broad permissions to create EKS, VPC, IAM, EC2 resources.
-  AccioPlatformProvisioner:
+  StrataPlatformProvisioner:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: accio-platform-provisioner
-      Description: "Assumed by ACCIO CodeBuild to run Terraform in this account"
+      RoleName: Strata-platform-provisioner
+      Description: "Assumed by Strata CodeBuild to run Terraform in this account"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
           - Sid: TrustAccioCodeBuild
             Effect: Allow
             Principal:
-              AWS: !Sub "arn:aws:iam::${AccioAccountId}:role/accio-codebuild-role"
+              AWS: !Sub "arn:aws:iam::${StrataAccountId}:role/Strata-codebuild-role"
             Action: sts:AssumeRole
             Condition:
               StringEquals:
-                sts:ExternalId: "accio-provisioner-v1"   # extra guard; CodeBuild sends this
+                sts:ExternalId: "Strata-provisioner-v1"   # extra guard; CodeBuild sends this
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AdministratorAccess
         # NOTE: AdministratorAccess is used in v1 for speed of delivery.
         # A scoped-down policy (EKS, EC2, VPC, IAM:PassRole only) will
-        # replace this in v2. Tracked in issue ACCIO-88.
+        # replace this in v2. Tracked in issue Strata-88.
       Tags:
         - Key: managed-by
-          Value: accio-platform
+          Value: Strata-platform
         - Key: version
           Value: v1
 
   # ── Role 2: Reader ───────────────────────────────────────────────────────
-  # Assumed by ACCIO's status-checker and agent-tools Lambda functions.
+  # Assumed by Strata's status-checker and agent-tools Lambda functions.
   # Read-only: cluster health, CloudWatch metrics, CloudWatch Logs.
-  AccioPlatformReader:
+  StrataPlatformReader:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: accio-platform-reader
-      Description: "Assumed by ACCIO Lambda to read cluster status and logs"
+      RoleName: Strata-platform-reader
+      Description: "Assumed by Strata Lambda to read cluster status and logs"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
           - Sid: TrustAccioLambda
             Effect: Allow
             Principal:
-              AWS: !Sub "arn:aws:iam::${AccioAccountId}:role/accio-lambda-role"
+              AWS: !Sub "arn:aws:iam::${StrataAccountId}:role/Strata-lambda-role"
             Action: sts:AssumeRole
             Condition:
               StringEquals:
-                sts:ExternalId: "accio-reader-v1"
+                sts:ExternalId: "Strata-reader-v1"
       Policies:
-        - PolicyName: accio-reader-policy
+        - PolicyName: Strata-reader-policy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -1507,20 +1507,20 @@ Resources:
                   - !Sub "arn:aws:logs:*:${AWS::AccountId}:log-group:/aws/eks/*:*"
       Tags:
         - Key: managed-by
-          Value: accio-platform
+          Value: Strata-platform
         - Key: version
           Value: v1
 
 Outputs:
   ProvisionerRoleArn:
-    Description: ARN of the provisioner role (shown in ACCIO console for confirmation)
-    Value: !GetAtt AccioPlatformProvisioner.Arn
+    Description: ARN of the provisioner role (shown in Strata console for confirmation)
+    Value: !GetAtt StrataPlatformProvisioner.Arn
   ReaderRoleArn:
     Description: ARN of the reader role
-    Value: !GetAtt AccioPlatformReader.Arn
+    Value: !GetAtt StrataPlatformReader.Arn
   StackStatus:
     Description: Friendly confirmation string
-    Value: "ACCIO IAM roles deployed successfully. Return to the Observatory app and tap Verify Setup."
+    Value: "Strata IAM roles deployed successfully. Return to the Observatory app and tap Verify Setup."
 ```
 
 ---
@@ -1529,11 +1529,11 @@ Outputs:
 
 | Caller | ExternalId sent | Role trusted |
 |--------|----------------|-------------|
-| CodeBuild build env | `accio-provisioner-v1` (env var `ACCIO_EXTERNAL_ID`) | `accio-platform-provisioner` |
-| status_checker Lambda | `accio-reader-v1` (env var `ACCIO_READER_EXT_ID`) | `accio-platform-reader` |
-| verify-iam Lambda | `accio-reader-v1` | `accio-platform-reader` |
+| CodeBuild build env | `Strata-provisioner-v1` (env var `ACCIO_EXTERNAL_ID`) | `Strata-platform-provisioner` |
+| status_checker Lambda | `Strata-reader-v1` (env var `ACCIO_READER_EXT_ID`) | `Strata-platform-reader` |
+| verify-iam Lambda | `Strata-reader-v1` | `Strata-platform-reader` |
 
-This prevents the [confused deputy problem](https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html): even if another AWS account somehow learned the ACCIO account ID, they could not assume the role without the `ExternalId`.
+This prevents the [confused deputy problem](https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html): even if another AWS account somehow learned the Strata account ID, they could not assume the role without the `ExternalId`.
 
 ---
 
@@ -1541,10 +1541,10 @@ This prevents the [confused deputy problem](https://docs.aws.amazon.com/IAM/late
 
 | Bucket name | Contents |
 |-------------|----------|
-| `accio-tf-code` | `terraform-aws.zip`, `terraform-azure.zip`, `terraform-gcp.zip` |
-| `accio-tf-state` | Per-cluster TF state: `{cluster_id}/terraform.tfstate` |
-| `accio-outputs` | Per-cluster outputs: `{cluster_id}/outputs.json` |
-| `accio-agent-schemas` | OpenAPI YAML files for Bedrock action groups |
+| `Strata-tf-code` | `terraform-aws.zip`, `terraform-azure.zip`, `terraform-gcp.zip` |
+| `Strata-tf-state` | Per-cluster TF state: `{cluster_id}/terraform.tfstate` |
+| `Strata-outputs` | Per-cluster outputs: `{cluster_id}/outputs.json` |
+| `Strata-agent-schemas` | OpenAPI YAML files for Bedrock action groups |
 
 ---
 
@@ -1563,14 +1563,14 @@ Flutter reads a `GET /config` endpoint that returns enabled providers — provid
 
 ## SECTION 15 — DEPLOYMENT ORDER (for Claude Code)
 
-1. `cd infra && terraform init && terraform apply` — deploys all platform infrastructure into ACCIO AWS account.
+1. `cd infra && terraform init && terraform apply` — deploys all platform infrastructure into Strata AWS account.
 2. Enable Bedrock model access for `claude-3-sonnet` in AWS console (manual — Bedrock → Model access).
-3. Upload OpenAPI schemas: `aws s3 cp agent_schemas/ s3://accio-agent-schemas/ --recursive`
-4. Package and upload Terraform modules: `cd terraform/aws && zip -r ../accio-tf-code/terraform-aws.zip . && aws s3 cp terraform-aws.zip s3://accio-tf-code/`
+3. Upload OpenAPI schemas: `aws s3 cp agent_schemas/ s3://Strata-agent-schemas/ --recursive`
+4. Package and upload Terraform modules: `cd terraform/aws && zip -r ../Strata-tf-code/terraform-aws.zip . && aws s3 cp terraform-aws.zip s3://Strata-tf-code/`
 5. Build both Flutter targets:
    - Android APK: `cd flutter_app && flutter build apk --release`
    - Web bundle:  `cd flutter_app && flutter build web --release --base-href /` (output: `build/web/`)
-   - Upload web bundle: `aws s3 sync flutter_app/build/web/ s3://accio-web-app/ --delete`
+   - Upload web bundle: `aws s3 sync flutter_app/build/web/ s3://Strata-web-app/ --delete`
    - (Optional) serve via CloudFront distribution pointing to the S3 bucket for HTTPS + CDN.
 6. Distribute APK. Users onboard: sign up → GitHub OAuth → deploy CloudFormation IAM stack in their AWS account.
 7. Test end-to-end: provision cluster → poll status → verify READY → open Co-Pilot → ask "How many pods are running?"
@@ -1582,7 +1582,7 @@ Flutter reads a `GET /config` endpoint that returns enabled providers — provid
 | Decision | Choice | Reason |
 |----------|--------|--------|
 | App name | Observatory | Matches wireframes |
-| Platform name | ACCIO | Matches architecture diagram label |
+| Platform name | Strata | Matches architecture diagram label |
 | Multi-cloud v1 | AWS only, feature-flagged UI | Ship fast; Terraform modules stubbed for Azure/GCP |
 | Auth | Cognito JWT | Native API GW authorizer; scales to multi-user |
 | Cluster isolation | One AWS account per customer | Hard security boundary |

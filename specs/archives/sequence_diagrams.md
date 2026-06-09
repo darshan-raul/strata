@@ -1,4 +1,4 @@
-# ACCIO Platform — Sequence Diagrams
+# Strata Platform — Sequence Diagrams
 
 ---
 
@@ -48,14 +48,14 @@ sequenceDiagram
     App->>GitHub: Open WebView — OAuth2 authorize URL (scope: repo, read:user)
     GitHub->>User: Show permissions consent screen
     User->>GitHub: Authorize
-    GitHub-->>App: Redirect to accio://callback?code=XYZ&state=ABC
+    GitHub-->>App: Redirect to Strata://callback?code=XYZ&state=ABC
 
     App->>App: Validate state (CSRF check)
     App->>APIGW: PUT /users/me/github-token { code }
     APIGW->>OrchestratorLambda: Invoke
     OrchestratorLambda->>GitHub: POST /login/oauth/access_token { code }
     GitHub-->>OrchestratorLambda: { access_token }
-    OrchestratorLambda->>SM: PutSecretValue accio/users/{user_id}/github
+    OrchestratorLambda->>SM: PutSecretValue Strata/users/{user_id}/github
     OrchestratorLambda->>Cognito: UpdateUserAttributes(custom:github_connected=true)
     OrchestratorLambda-->>App: 200 { status: "ok" }
     App->>User: Navigate to "Cloud Credentials" screen
@@ -87,11 +87,11 @@ sequenceDiagram
 
     App->>User: Show step-by-step guidance panel + deep-link button
     User->>AWSConsole: Open CloudFormation deep-link in browser
-    Note over AWSConsole: Pre-filled params: AccioAccountId, ExternalId
+    Note over AWSConsole: Pre-filled params: StrataAccountId, ExternalId
 
     User->>AWSConsole: Check IAM acknowledgement + Create Stack
-    AWSConsole->>CustomerAccount: Create accio-platform-provisioner role
-    AWSConsole->>CustomerAccount: Create accio-platform-reader role
+    AWSConsole->>CustomerAccount: Create Strata-platform-provisioner role
+    AWSConsole->>CustomerAccount: Create Strata-platform-reader role
     Note over CustomerAccount: Both roles have trust policy scoped to ExternalId
     CustomerAccount-->>AWSConsole: Stack CREATE_COMPLETE
 
@@ -99,7 +99,7 @@ sequenceDiagram
     App->>APIGW: GET /onboarding/verify-iam?account_id=123456789012
     APIGW->>OnboardingLambda: Invoke
     OnboardingLambda->>DDB: GetItem { user_id } — fetch external_id
-    OnboardingLambda->>CustomerAccount: sts:AssumeRole(accio-platform-reader, ExternalId)
+    OnboardingLambda->>CustomerAccount: sts:AssumeRole(Strata-platform-reader, ExternalId)
     CustomerAccount-->>OnboardingLambda: Temporary credentials
     OnboardingLambda-->>App: { verified: true }
 
@@ -145,7 +145,7 @@ sequenceDiagram
 
     SFN->>StartCBLambda: Invoke with waitForTaskToken
     StartCBLambda->>CodeBuild: StartBuild(cluster_id, region, aws_account_id, external_id)
-    CodeBuild->>CustomerEKS: AssumeRole(accio-platform-provisioner, ExternalId)
+    CodeBuild->>CustomerEKS: AssumeRole(Strata-platform-provisioner, ExternalId)
     CodeBuild->>CustomerEKS: terraform apply (VPC + EKS + ArgoCD Helm)
     CustomerEKS-->>CodeBuild: cluster_endpoint, argocd_url, argocd_admin_password
     CodeBuild->>StartCBLambda: SendTaskSuccess(task_token, terraform_output)
@@ -154,7 +154,7 @@ sequenceDiagram
     SFN->>DDB: UpdateItem { status=VALIDATING, step=CLUSTER_HEALTH_CHECK, cluster_endpoint }
 
     SFN->>StatusChecker: Invoke
-    StatusChecker->>CustomerEKS: AssumeRole(accio-platform-reader, ExternalId)
+    StatusChecker->>CustomerEKS: AssumeRole(Strata-platform-reader, ExternalId)
     StatusChecker->>CustomerEKS: eks:DescribeCluster
     CustomerEKS-->>StatusChecker: { status: ACTIVE }
     StatusChecker-->>SFN: validation passed
@@ -162,7 +162,7 @@ sequenceDiagram
     SFN->>DDB: UpdateItem { status=INSTALLING_ARGOCD, step=HELM_ARGOCD }
 
     SFN->>ArgoCDDeployer: Invoke
-    ArgoCDDeployer->>SM: GetSecretValue(accio/users/{user_id}/github)
+    ArgoCDDeployer->>SM: GetSecretValue(Strata/users/{user_id}/github)
     SM-->>ArgoCDDeployer: { github_token }
     ArgoCDDeployer->>ArgoCD: GET /healthz (retry until ready)
     ArgoCDDeployer->>ArgoCD: POST /api/v1/session — get bearer token
@@ -248,7 +248,7 @@ sequenceDiagram
     DDB-->>HealthMonitor: List of active clusters
 
     loop For each READY cluster
-        HealthMonitor->>CustomerAccount: AssumeRole(accio-platform-reader, ExternalId)
+        HealthMonitor->>CustomerAccount: AssumeRole(Strata-platform-reader, ExternalId)
         HealthMonitor->>CustomerAccount: eks:DescribeCluster
         HealthMonitor->>CustomerAccount: CloudWatch GetMetricStatistics (cpu, memory)
         HealthMonitor->>CustomerAccount: CloudWatch FilterLogEvents (ERROR, last 5 min)
@@ -286,7 +286,7 @@ sequenceDiagram
     AgentProxy->>Bedrock: InvokeAgent("[cluster_id=eks-abc-123] Why did my pod crash?")
 
     Bedrock->>AgentTools: Tool — /logs { cluster_id }
-    AgentTools->>CustomerAccount: AssumeRole(accio-platform-reader, ExternalId)
+    AgentTools->>CustomerAccount: AssumeRole(Strata-platform-reader, ExternalId)
     AgentTools->>CustomerAccount: CloudWatch FilterLogEvents (ERROR, last 12h)
     CustomerAccount-->>AgentTools: Error log events
     AgentTools-->>Bedrock: { logs }
@@ -333,7 +333,7 @@ sequenceDiagram
 
     SFN->>StartCBLambda: Invoke with waitForTaskToken
     StartCBLambda->>CodeBuild: StartBuild(action=destroy, cluster vars)
-    CodeBuild->>CustomerAccount: AssumeRole(accio-platform-provisioner, ExternalId)
+    CodeBuild->>CustomerAccount: AssumeRole(Strata-platform-provisioner, ExternalId)
     CodeBuild->>CustomerAccount: terraform destroy (EKS + VPC + all resources)
     CustomerAccount-->>CodeBuild: Destroy complete
     CodeBuild->>StartCBLambda: SendTaskSuccess(task_token)

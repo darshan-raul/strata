@@ -1,0 +1,12 @@
+apiVersion: v2
+name: Strata-chart
+description: Strata - Internal Developer Portal Helm Chart
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - developer-portal
+  - internal-platform
+maintainers:
+  - name: Platform Team
+    email: platform@Strata.dev

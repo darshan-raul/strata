@@ -5,7 +5,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'accio/services/*-service/**'
+      - 'Strata/services/*-service/**'
       - '.github/workflows/go-services.yml'
 
 jobs:
@@ -34,18 +34,18 @@ jobs:
       uses: golangci/golangci-lint-action@v6
       with:
         version: latest
-        working-directory: accio/services/${{ matrix.service }}
+        working-directory: Strata/services/${{ matrix.service }}
         args: --timeout=5m
         
     - name: Run Tests
-      working-directory: accio/services/${{ matrix.service }}
+      working-directory: Strata/services/${{ matrix.service }}
       run: go test -v ./...
       
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
         scan-type: 'fs'
-        scan-ref: 'accio/services/${{ matrix.service }}'
+        scan-ref: 'Strata/services/${{ matrix.service }}'
         format: 'table'
         exit-code: '0'
         ignore-unfixed: true
@@ -69,9 +69,9 @@ jobs:
       if: github.ref == 'refs/heads/main' && matrix.service != 'shared'
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: accio/${{ matrix.service }}
+        ECR_REPOSITORY: Strata/${{ matrix.service }}
         IMAGE_TAG: ${{ github.sha }}
-      working-directory: accio/services/${{ matrix.service }}
+      working-directory: Strata/services/${{ matrix.service }}
       run: |
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG

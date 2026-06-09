@@ -30,7 +30,7 @@ resource "aws_dynamodb_table" "clusters" {
   }
 
   tags = {
-    Name = "accio-clusters"
+    Name = "Strata-clusters"
   }
 }
 
@@ -39,7 +39,7 @@ resource "aws_dynamodb_table" "clusters" {
 # ---------------------------------------------------------------------------
 
 resource "aws_ssm_parameter" "dynamodb_table_name" {
-  name  = "/accio/dynamodb/clusters-table"
+  name  = "/Strata/dynamodb/clusters-table"
   type  = "String"
   value = aws_dynamodb_table.clusters.name
 }

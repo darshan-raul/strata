@@ -3,7 +3,7 @@ to the github repos and aws account [to be later implemented on gcp and azure as
 
 So this is a SaaS platform and currently we are starting with it being able to provision in aws. It will be flutter based because i want a web frontend for onboarding [most of the github and aws access grant workflows can only work through the web] and then a mobile frontend [android now, ios later] to monitor it.
 
-The apps name is accio [potterverse magic spell to summon things]. The flutter web frontend will be hosted on vercel/cloudflare pages and the mobile app I will start with just installing on my android. The backend will be completely serverless on AWS. Also the sample app to be used in demo will be a k8s mirror of the serverless backend, ill explain it in its section
+The apps name is Strata [potterverse magic spell to summon things]. The flutter web frontend will be hosted on vercel/cloudflare pages and the mobile app I will start with just installing on my android. The backend will be completely serverless on AWS. Also the sample app to be used in demo will be a k8s mirror of the serverless backend, ill explain it in its section
 
 Prerequisites:
 

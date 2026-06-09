@@ -1,24 +1,24 @@
-# AGENTS.md — ACCIO Platform
+# AGENTS.md — Strata Platform
 
 ## What This Project Is
 
-ACCIO (Observatory) is a SaaS platform that provisions production-grade EKS clusters in customers' AWS accounts via GitOps and a serverless control plane. The `accio/` subdirectory is a **sample application** used to test cluster deployment — it is NOT the ACCIO platform itself.
+Strata is a SaaS platform that provisions production-grade EKS clusters in customers' AWS accounts via GitOps and a serverless control plane. The `sample-app/` subdirectory is a **sample application** used to test cluster deployment — it is NOT the Strata platform itself.
 
 ## Repo Architecture
 
 | Directory | Purpose |
 |-----------|---------|
-| `lambdas/` | ACCIO serverless control plane (Python Lambdas) |
-| `infra/` | ACCIO control plane Terraform (Cognito, DynamoDB, S3, IAM, Step Functions, CodeBuild) |
-| `flutter_app/` | Flutter mobile + web app for the ACCIO platform |
+| `lambdas/` | Strata serverless control plane (Python Lambdas) |
+| `infra/` | Strata control plane Terraform (Cognito, DynamoDB, S3, IAM, Step Functions, CodeBuild) |
+| `flutter_app/` | Flutter mobile + web app for the Strata platform |
 | `terraform/aws/` | EKS cluster Terraform module (zipped to S3 for CodeBuild) |
 | `buildspec.yml` | CodeBuild spec — runs Terraform in customer AWS account |
 | `onboarding_cfn.yaml` | CloudFormation template customers deploy to create cross-account IAM roles |
-| `accio/` | Sample application (Go microservices + React portal-ui) — EKS deployment target |
+| `sample-app/` | Sample application (Go microservices + React portal-ui) — EKS deployment target |
 | `diagrams/` | Architecture diagrams (PNG) |
 | `specs/` | Master design docs and sample app architecture |
 
-## ACCIO Platform (Serverless Backend)
+## Strata Platform (Serverless Backend)
 
 ### Lambdas (`lambdas/`)
 
@@ -54,7 +54,7 @@ All routes authorized via Cognito JWT. Lambdas handle orchestration; DynamoDB ha
 
 State machine definitions (`provision_cluster.asl.json`, `deprovision.asl.json`) are **not yet created**. They will live in `state_machines/` once created.
 
-## ACCIO Platform: Flutter App (`flutter_app/`)
+## Strata Platform: Flutter App (`flutter_app/`)
 
 Flutter app for Android + Web. Currently minimal stub (`lib/main.dart`, `config.dart`, `screens/`, `services/`, `models/`, `theme/`).
 
@@ -63,7 +63,7 @@ Flutter app for Android + Web. Currently minimal stub (`lib/main.dart`, `config.
 
 ## Infrastructure (`infra/`)
 
-Terraform for the ACCIO control plane. State is managed in S3 backend (per `main.tf`).
+Terraform for the Strata control plane. State is managed in S3 backend (per `main.tf`).
 
 - Key files: `cognito.tf`, `dynamodb.tf`, `iam.tf`, `step_functions.tf`, `codebuild.tf`, `lambdas.tf`, `api_gateway.tf`, `secrets_manager.tf`
 - Variables: defined in `variables.tf`
@@ -77,42 +77,42 @@ EKS cluster Terraform module. Zipped to S3 and extracted by CodeBuild during pro
 ## Onboarding CloudFormation (`onboarding_cfn.yaml`)
 
 Customer deploys this to their AWS account. Creates:
-- `accio-platform-provisioner` role (cross-account Terraform access)
-- `accio-platform-reader` role (status checking via STS assume role)
+- `strata-platform-provisioner` role (cross-account Terraform access)
+- `strata-platform-reader` role (status checking via STS assume role)
 
-## Sample Application (`accio/`)
+## Sample Application (`sample-app/`)
 
-The sample app is a cloud-native mirror of the ACCIO serverless backend, deployed to EKS clusters created by the platform.
+The sample app is a cloud-native mirror of the Strata serverless backend, deployed to EKS clusters created by the platform.
 
-### Go Services (`accio/services/`)
+### Go Services (`sample-app/services/`)
 
 Each service is a standalone Go module. They are lint-checked by `.github/workflows/go-services.yml`.
 
 | Service | Port | Path |
 |---------|------|------|
-| catalog-service | 8081 | `accio/services/catalog-service` |
-| provisioner-service | 8082 | `accio/services/provisioner-service` |
-| scorecard-service | 8083 | `accio/services/scorecard-service` |
-| workflow-service | 8084 | `accio/services/workflow-service` |
-| audit-service | 8085 | `accio/services/audit-service` |
+| catalog-service | 8081 | `sample-app/services/catalog-service` |
+| provisioner-service | 8082 | `sample-app/services/provisioner-service` |
+| scorecard-service | 8083 | `sample-app/services/scorecard-service` |
+| workflow-service | 8084 | `sample-app/services/workflow-service` |
+| audit-service | 8085 | `sample-app/services/audit-service` |
 
-Lint rules and service-specific notes are in `accio/AGENTS.md`.
+Lint rules and service-specific notes are in `sample-app/AGENTS.md`.
 
-### Portal UI (`accio/services/portal-ui/`)
+### Portal UI (`sample-app/services/portal-ui/`)
 
 React/Vite app with no `package-lock.json` (npm caching is disabled in the CI workflow).
 
-### Docker Compose (`accio/docker-compose.yml`)
+### Docker Compose (`sample-app/docker-compose.yml`)
 
 Local dev environment: PostgreSQL, NATS, Kong, Dex, and all 5 Go services.
 
-### K8s Manifests (`accio/k8s/`)
+### K8s Manifests (`sample-app/k8s/`)
 
 Kubernetes manifests for the sample app. Used with ArgoCD GitOps sync. Not yet created.
 
-### Tiltfile (`accio/Tiltfile`)
+### Tiltfile (`sample-app/Tiltfile`)
 
-Used for local Kind cluster development. Run with `cd accio && tilt up`.
+Used for local Kind cluster development. Run with `cd sample-app && tilt up`.
 
 ## Build & Deploy Flow
 
@@ -174,7 +174,7 @@ act --action-offline-mode
 
 - Step Functions state machines (`state_machines/provision_cluster.asl.json`, `deprovision.asl.json`)
 - Lambdas: `status_checker`, `argocd_deployer`, `agent_proxy`, `agent_tools`, `health_monitor`
-- Sample app K8s manifests (`accio/k8s/`)
+- Sample app K8s manifests (`sample-app/k8s/`)
 - Sample app React frontend (only Go services + portal-ui exist)
 
 ## Quick Commands
@@ -184,10 +184,10 @@ act --action-offline-mode
 cd lambdas && bash package.sh
 
 # Local sample app dev (Docker Compose)
-docker-compose -f accio/docker-compose.yml up
+docker-compose -f sample-app/docker-compose.yml up
 
 # Kind cluster + Tiltfile dev
-kind create cluster && cd accio && tilt up
+kind create cluster && cd sample-app && tilt up
 
 # Flutter app
 cd flutter_app && flutter run

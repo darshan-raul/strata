@@ -1,0 +1,158 @@
+namespace: Strata
+
+global:
+  imagePullPolicy: IfNotPresent
+  imageTag: v1.0.0
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+
+postgres:
+  replicaCount: 1
+  image:
+    repository: postgres
+    tag: "15-alpine"
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: "0.5"
+      memory: 256Mi
+  storage: 10Gi
+  env:
+    user: Strata
+    database: Strata
+    password: strata_password
+
+redis:
+  replicaCount: 1
+  image:
+    repository: redis
+    tag: "7-alpine"
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: "0.25"
+      memory: 128Mi
+
+nats:
+  replicaCount: 1
+  image:
+    repository: nats
+    tag: "2.10-alpine"
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: "0.5"
+      memory: 256Mi
+
+authService:
+  replicaCount: 1
+  image:
+    repository: auth-service
+    tag: v1.0.0
+  resources:
+    limits:
+      cpu: "0.5"
+      memory: 256Mi
+    requests:
+      cpu: "0.25"
+      memory: 128Mi
+
+catalogService:
+  replicaCount: 2
+  image:
+    repository: catalog-service
+    tag: v1.0.0
+  service:
+    port: 8081
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: "0.25"
+      memory: 128Mi
+
+provisionerService:
+  replicaCount: 2
+  image:
+    repository: provisioner-service
+    tag: v1.0.0
+  service:
+    port: 8082
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: "0.25"
+      memory: 128Mi
+
+scorecardService:
+  replicaCount: 2
+  image:
+    repository: scorecard-service
+    tag: v1.0.0
+  service:
+    port: 8083
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: "0.25"
+      memory: 128Mi
+
+workflowEngine:
+  replicaCount: 2
+  image:
+    repository: workflow-engine
+    tag: v1.0.0
+  service:
+    port: 8084
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: "0.25"
+      memory: 128Mi
+
+auditService:
+  replicaCount: 2
+  image:
+    repository: audit-service
+    tag: v1.0.0
+  service:
+    port: 8085
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: "0.25"
+      memory: 128Mi
+
+portalUi:
+  replicaCount: 2
+  image:
+    repository: portal-ui
+    tag: v1.0.0
+  service:
+    port: 3000
+    nodePort: 30000
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: "0.25"
+      memory: 128Mi

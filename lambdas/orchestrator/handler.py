@@ -11,7 +11,7 @@ ddb = boto3.resource("dynamodb")
 # Environment Variables
 SFN_CREATE_ARN = os.environ.get("SFN_CREATE_ARN")
 CLUSTERS_TABLE = os.environ.get("CLUSTERS_TABLE")
-EXTERNAL_ID = os.environ.get("EXTERNAL_ID", "accio-provisioner-v1")
+EXTERNAL_ID = os.environ.get("EXTERNAL_ID", "strata-provisioner-v1")
 
 # Helper to convert Decimal for json serialization
 class DecimalEncoder(json.JSONEncoder):

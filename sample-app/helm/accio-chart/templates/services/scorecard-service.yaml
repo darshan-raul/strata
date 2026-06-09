@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scorecard-service
+  namespace: {{ include "Strata.namespace" . }}
+spec:
+  replicas: {{ .Values.scorecardService.replicaCount }}
+  selector:
+    matchLabels:
+      app: scorecard-service
+  template:
+    metadata:
+      labels:
+        app: scorecard-service
+    spec:
+      containers:
+        - name: scorecard-service
+          image: "{{ .Values.scorecardService.image.repository }}:{{ .Values.scorecardService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.scorecardService.service.port }}
+          env:
+            - name: DB_DSN
+              value: {{ include "Strata.postgres.url" . }}
+            - name: NATS_URL
+              value: {{ include "Strata.nats.url" . }}
+            - name: PORT
+              value: {{ .Values.scorecardService.service.port | quote }}
+          resources:
+            {{- toYaml .Values.scorecardService.resources | nindent 10 }}

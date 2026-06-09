@@ -21,7 +21,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project     = "accio-customer-cluster"
+      Project     = "strata-customer-cluster"
       ManagedBy   = "terraform"
       ClusterID   = var.cluster_id
     }

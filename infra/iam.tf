@@ -1,11 +1,11 @@
 # ---------------------------------------------------------------------------
-# accio-lambda-role
-# Assumed by: all Lambda functions in the ACCIO platform account
+# strata-lambda-role
+# Assumed by: all Lambda functions in the Strata platform account
 # ---------------------------------------------------------------------------
 
-resource "aws_iam_role" "accio_lambda" {
-  name        = "accio-lambda-role"
-  description = "Execution role for all ACCIO platform Lambda functions"
+resource "aws_iam_role" "strata_lambda" {
+  name        = "strata-lambda-role"
+  description = "Execution role for all Strata platform Lambda functions"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -17,18 +17,18 @@ resource "aws_iam_role" "accio_lambda" {
     }]
   })
 
-  tags = { Name = "accio-lambda-role" }
+  tags = { Name = "strata-lambda-role" }
 }
 
 # Basic Lambda execution (CloudWatch Logs)
 resource "aws_iam_role_policy_attachment" "lambda_basic_exec" {
-  role       = aws_iam_role.accio_lambda.name
+  role       = aws_iam_role.strata_lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
 resource "aws_iam_role_policy" "lambda_platform" {
-  name = "accio-lambda-platform-policy"
-  role = aws_iam_role.accio_lambda.id
+  name = "strata-lambda-platform-policy"
+  role = aws_iam_role.strata_lambda.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -52,7 +52,7 @@ resource "aws_iam_role_policy" "lambda_platform" {
         ]
       },
 
-      # Secrets Manager — read/write only under accio/users/ namespace
+      # Secrets Manager — read/write only under strata/users/ namespace
       {
         Sid    = "SecretsManagerUserSecrets"
         Effect = "Allow"
@@ -62,7 +62,7 @@ resource "aws_iam_role_policy" "lambda_platform" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret",
         ]
-        Resource = "arn:aws:secretsmanager:${local.region}:${local.account_id}:secret:accio/users/*"
+        Resource = "arn:aws:secretsmanager:${local.region}:${local.account_id}:secret:strata/users/*"
       },
 
       # Secrets Manager — read platform-level secrets (e.g. kms-key-arn)
@@ -70,7 +70,7 @@ resource "aws_iam_role_policy" "lambda_platform" {
         Sid    = "SecretsManagerPlatform"
         Effect = "Allow"
         Action = ["secretsmanager:GetSecretValue"]
-        Resource = "arn:aws:secretsmanager:${local.region}:${local.account_id}:secret:accio/platform/*"
+        Resource = "arn:aws:secretsmanager:${local.region}:${local.account_id}:secret:strata/platform/*"
       },
 
       # KMS — use the master key for secret encryption/decryption
@@ -78,7 +78,7 @@ resource "aws_iam_role_policy" "lambda_platform" {
         Sid    = "KMSUse"
         Effect = "Allow"
         Action = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"]
-        Resource = aws_kms_key.accio.arn
+        Resource = aws_kms_key.strata.arn
       },
 
       # Step Functions — start executions (orchestrator Lambda)
@@ -87,8 +87,8 @@ resource "aws_iam_role_policy" "lambda_platform" {
         Effect = "Allow"
         Action = ["states:StartExecution"]
         Resource = [
-          "arn:aws:states:${local.region}:${local.account_id}:stateMachine:accio-provision-cluster",
-          "arn:aws:states:${local.region}:${local.account_id}:stateMachine:accio-deprovision-cluster",
+          "arn:aws:states:${local.region}:${local.account_id}:stateMachine:strata-provision-cluster",
+          "arn:aws:states:${local.region}:${local.account_id}:stateMachine:strata-deprovision-cluster",
         ]
       },
 
@@ -109,9 +109,9 @@ resource "aws_iam_role_policy" "lambda_platform" {
         Sid    = "STSAssumeReader"
         Effect = "Allow"
         Action = ["sts:AssumeRole"]
-        Resource = "arn:aws:iam::*:role/accio-platform-reader"
+        Resource = "arn:aws:iam::*:role/strata-platform-reader"
         Condition = {
-          StringEquals = { "sts:ExternalId" = "accio-reader-v1" }
+          StringEquals = { "sts:ExternalId" = "strata-reader-v1" }
         }
       },
 
@@ -120,7 +120,7 @@ resource "aws_iam_role_policy" "lambda_platform" {
         Sid    = "CognitoUpdateAttributes"
         Effect = "Allow"
         Action = ["cognito-idp:AdminUpdateUserAttributes"]
-        Resource = aws_cognito_user_pool.accio.arn
+        Resource = aws_cognito_user_pool.strata.arn
       },
 
       # SSM — read platform parameters at runtime
@@ -128,7 +128,7 @@ resource "aws_iam_role_policy" "lambda_platform" {
         Sid    = "SSMRead"
         Effect = "Allow"
         Action = ["ssm:GetParameter", "ssm:GetParameters"]
-        Resource = "arn:aws:ssm:${local.region}:${local.account_id}:parameter/accio/*"
+        Resource = "arn:aws:ssm:${local.region}:${local.account_id}:parameter/strata/*"
       },
 
       # Bedrock Agent runtime (agent_proxy Lambda)
@@ -143,13 +143,13 @@ resource "aws_iam_role_policy" "lambda_platform" {
 }
 
 # ---------------------------------------------------------------------------
-# accio-codebuild-role
+# strata-codebuild-role
 # Assumed by: CodeBuild service (runs Terraform in customer accounts)
 # ---------------------------------------------------------------------------
 
-resource "aws_iam_role" "accio_codebuild" {
-  name        = "accio-codebuild-role"
-  description = "Service role for ACCIO CodeBuild projects (Terraform runner)"
+resource "aws_iam_role" "strata_codebuild" {
+  name        = "strata-codebuild-role"
+  description = "Service role for Strata CodeBuild projects (Terraform runner)"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -161,12 +161,12 @@ resource "aws_iam_role" "accio_codebuild" {
     }]
   })
 
-  tags = { Name = "accio-codebuild-role" }
+  tags = { Name = "strata-codebuild-role" }
 }
 
 resource "aws_iam_role_policy" "codebuild_platform" {
-  name = "accio-codebuild-platform-policy"
-  role = aws_iam_role.accio_codebuild.id
+  name = "strata-codebuild-platform-policy"
+  role = aws_iam_role.strata_codebuild.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -204,12 +204,12 @@ resource "aws_iam_role_policy" "codebuild_platform" {
         ]
       },
 
-      # KMS — decrypt zips/state encrypted with ACCIO master key
+      # KMS — decrypt zips/state encrypted with Strata master key
       {
         Sid    = "KMSUse"
         Effect = "Allow"
         Action = ["kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"]
-        Resource = aws_kms_key.accio.arn
+        Resource = aws_kms_key.strata.arn
       },
 
       # Step Functions — send task success/failure after Terraform completes
@@ -229,9 +229,9 @@ resource "aws_iam_role_policy" "codebuild_platform" {
         Sid    = "STSAssumeProvisioner"
         Effect = "Allow"
         Action = ["sts:AssumeRole"]
-        Resource = "arn:aws:iam::*:role/accio-platform-provisioner"
+        Resource = "arn:aws:iam::*:role/strata-platform-provisioner"
         Condition = {
-          StringEquals = { "sts:ExternalId" = "accio-provisioner-v1" }
+          StringEquals = { "sts:ExternalId" = "strata-provisioner-v1" }
         }
       },
 
@@ -240,20 +240,20 @@ resource "aws_iam_role_policy" "codebuild_platform" {
         Sid    = "SSMRead"
         Effect = "Allow"
         Action = ["ssm:GetParameter", "ssm:GetParameters"]
-        Resource = "arn:aws:ssm:${local.region}:${local.account_id}:parameter/accio/*"
+        Resource = "arn:aws:ssm:${local.region}:${local.account_id}:parameter/strata/*"
       },
     ]
   })
 }
 
 # ---------------------------------------------------------------------------
-# accio-sfn-role
+# strata-sfn-role
 # Assumed by: Step Functions state machines
 # ---------------------------------------------------------------------------
 
-resource "aws_iam_role" "accio_sfn" {
-  name        = "accio-sfn-role"
-  description = "Execution role for ACCIO Step Functions state machines"
+resource "aws_iam_role" "strata_sfn" {
+  name        = "strata-sfn-role"
+  description = "Execution role for Strata Step Functions state machines"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -265,12 +265,12 @@ resource "aws_iam_role" "accio_sfn" {
     }]
   })
 
-  tags = { Name = "accio-sfn-role" }
+  tags = { Name = "strata-sfn-role" }
 }
 
 resource "aws_iam_role_policy" "sfn_platform" {
-  name = "accio-sfn-platform-policy"
-  role = aws_iam_role.accio_sfn.id
+  name = "strata-sfn-platform-policy"
+  role = aws_iam_role.strata_sfn.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -289,7 +289,7 @@ resource "aws_iam_role_policy" "sfn_platform" {
         Sid    = "InvokeLambda"
         Effect = "Allow"
         Action = ["lambda:InvokeFunction"]
-        Resource = "arn:aws:lambda:${local.region}:${local.account_id}:function:accio-*"
+        Resource = "arn:aws:lambda:${local.region}:${local.account_id}:function:strata-*"
       },
 
       # CloudWatch Logs — state machine execution logs
@@ -319,4 +319,3 @@ resource "aws_iam_role_policy" "sfn_platform" {
     ]
   })
 }
-

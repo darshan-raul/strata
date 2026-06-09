@@ -1,6 +1,6 @@
-# ACCIO Sample Application — Architecture & Implementation
+# Strata Sample Application — Architecture & Implementation
 
-This document details the design and deployment strategy for the Sample Application used by the ACCIO Platform. This application acts as a target payload to validate the EKS clusters provisioned by ACCIO. It is designed as a cloud-native, microservices-based mirror of the serverless backend running in the AWS control plane.
+This document details the design and deployment strategy for the Sample Application used by the Strata Platform. This application acts as a target payload to validate the EKS clusters provisioned by Strata. It is designed as a cloud-native, microservices-based mirror of the serverless backend running in the AWS control plane.
 
 ---
 
@@ -55,7 +55,7 @@ To showcase a polyglot environment common in cloud-native setups, the microservi
   - **Action:** Subscribes to `job.completed` and `job.failed` events on NATS. Simulates sending an email or push notification by logging formatted, structured output.
 
 ### 2.2 Service Written in Python
-*Python is retained here to mirror the Python-heavy nature of the ACCIO serverless backend and for its ease of use in scripting logic.*
+*Python is retained here to mirror the Python-heavy nature of the Strata serverless backend and for its ease of use in scripting logic.*
 
 * **Verifier Service:**
   - **Function:** A standalone cron job or long-running daemon.
@@ -72,35 +72,38 @@ To showcase a polyglot environment common in cloud-native setups, the microservi
 
 ## 3. Repository Structure
 
-For the purpose of ACCIO development and testing, the sample application's source code and Kubernetes manifests will reside in a subdirectory within the main platform repository. 
+For the purpose of Strata development and testing, the sample application's source code and Kubernetes manifests will reside in a subdirectory within the main platform repository. 
 
 *(Note: In a real-world scenario, the customer's application code would be in their own separate GitHub repository.)*
 
 ```text
-accio/
-└── sample-app/
-    ├── services/
-    │   ├── orchestrator/          # Go: REST API server
-    │   │   ├── main.go
-    │   │   └── Dockerfile
-    │   ├── worker/                # Go: NATS subscriber & processor
-    │   │   ├── main.go
-    │   │   └── Dockerfile
-    │   ├── notification/          # Go: Event listener
-    │   │   ├── main.go
-    │   │   └── Dockerfile
-    │   ├── verifier/              # Python: Periodic checker
-    │   │   ├── main.py
-    │   │   ├── requirements.txt
-    │   │   └── Dockerfile
-    │   └── frontend/              # React/Vite: Web UI
-    │       ├── src/
-    │       ├── package.json
-    │       └── Dockerfile
-    └── k8s-manifests/             # To be synced by ArgoCD
-        ├── apps/                  # Deployments, Services, HPAs for microservices
-        ├── infra/                 # Helm values for NATS, PostgreSQL
-        └── observability/         # OTel, Prometheus configs
+sample-app/
+├── services/
+│   ├── catalog-service/         # Go: Service and team registry
+│   │   ├── main.go
+│   │   └── Dockerfile
+│   ├── provisioner-service/     # Go: Infrastructure provisioning simulator
+│   │   ├── main.go
+│   │   └── Dockerfile
+│   ├── scorecard-service/       # Go: Service health scoring
+│   │   ├── main.go
+│   │   └── Dockerfile
+│   ├── workflow-service/        # Go: Workflow orchestration engine
+│   │   ├── main.go
+│   │   └── Dockerfile
+│   ├── audit-service/           # Go: Audit event logging
+│   │   ├── main.go
+│   │   └── Dockerfile
+│   └── portal-ui/              # React/Vite: Web UI
+│       ├── src/
+│       ├── package.json
+│       └── Dockerfile
+├── k8s/                        # Kubernetes manifests (ArgoCD sync target)
+│   ├── apps/                   # Deployments, Services, HPAs
+│   ├── infra/                  # Helm values for NATS, PostgreSQL
+│   └── observability/          # OTel, Prometheus configs
+├── docker-compose.yml
+└── Tiltfile
 ```
 
 ---
@@ -132,7 +135,7 @@ The sample application replaces managed AWS services (DynamoDB, SNS, SQS, API Ga
 - **OpenCost:** Deployed via Helm to provide real-time cost monitoring of the Kubernetes workloads.
 
 ### 4.6 GitOps (ArgoCD)
-- **App of Apps Pattern:** A root ArgoCD `Application` will be created pointing to the `sample-app/k8s-manifests/` directory. ArgoCD will automatically apply changes to the infrastructure configurations and application deployments, fully simulating the GitOps flow intended for ACCIO users.
+- **App of Apps Pattern:** A root ArgoCD `Application` will be created pointing to the `sample-app/k8s-manifests/` directory. ArgoCD will automatically apply changes to the infrastructure configurations and application deployments, fully simulating the GitOps flow intended for Strata users.
 
 ### 4.7 Backup & Restore
 - **Velero:** Deployed via Helm. Used to back up Kubernetes objects and persistent volumes, providing disaster recovery and migration capabilities for the EKS cluster.
