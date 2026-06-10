@@ -1,3 +1,20 @@
 */.terraform
 */lambda.zip
 **/node_modules
+**/__pycache__
+**/.venv
+**/.pytest_cache
+**/.ruff_cache
+**/*.pyc
+**/*.pyo
+
+# Strata control-plane: real k8s Secret for AWS creds (committed as .example only)
+control-plane/manifests/10-litellm/secret.yaml
+
+# Strata agent-service: uv-managed virtualenv + IDE noise
+services/agent-service/.venv
+services/agent-service/.pytest_cache
+services/agent-service/.ruff_cache
+services/agent-service/app/__pycache__
+services/agent-service/tests/__pycache__
+services/agent-service/**/*.egg-info

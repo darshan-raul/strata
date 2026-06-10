@@ -7,56 +7,66 @@
 
 ## Current Session
 
-**Date:** 2026-06-09
-**Agent session:** Session 2 — RAG addition
-**Focus:** decided on RAG, updated AGENTS.md and handoff.md to reflect it
+**Date:** 2026-06-10
+**Agent session:** Session 3 — major re-plan (agent-first, single-user, Next.js + CLI)
+**Focus:** realigned the build order around the user's actual goals (learn LangGraph/RAG deeply) and constraints (evenings/weekends, no frontend chops). Re-numbered phases. Updated AGENTS.md.
 
 ---
 
 ## Decisions Locked
 
-### From Session 1 (still in force)
+### From Sessions 1–2 (still in force, with changes noted)
 
-| Question | Decision |
-|---|---|
-| Frontend stack | **TanStack Start (web) + Expo/RN (mobile)** — drops Flutter entirely |
-| Mobile scope | **Defer detailed scope** — ship scaffold with placeholder screens |
-| Naming | **Rename everything to Strata now** — drop "Accio" and "Observatory" entirely |
-| Scope of work | **Full rewrite plan documented** — frontend + backend unblockers |
-| AWS access flow | **Cross-account IAM role only** — no popup OIDC, no access keys |
-| Co-pilot scope | **Full agent with all tools** — application-level confirmation UX |
-| Control plane cluster | **Strata-prod EKS** in our AWS account |
-| Postgres | **CloudNativePG** operator in-cluster |
-| Customer cluster IaC | **Terraform in a Go subprocess** (v1); Crossplane deferred |
-| Auth | **Zitadel** self-hosted in-cluster (replaces Cognito) |
-| Agent runtime | **agent-service in Python** (FastAPI + LangGraph + LangChain) |
-| Model abstraction | **LiteLLM proxy** sidecar |
-| Orchestration | **Argo Workflows** (replaces Step Functions) |
-| Ingress | **Kong** (reuses sample-app dependency) |
-| Secrets | **External Secrets Operator → AWS Secrets Manager** |
-| Observability | **PLG stack** in-cluster (Prometheus, Grafana, Loki, Tempo) |
+| Question | Decision | Notes |
+|---|---|---|
+| Control plane cluster | **Strata-prod EKS** in our AWS account | lands in Phase 5 |
+| Postgres | **CloudNativePG** operator in-cluster | lands in Phase 5/6 |
+| Customer cluster IaC | **Terraform in a Go subprocess** (v1); Crossplane deferred | unchanged |
+| Agent runtime | **agent-service in Python** (FastAPI + LangGraph + LangChain) | **moved to Phase 2 — first thing built** |
+| Model abstraction | **LiteLLM** proxy sidecar | unchanged |
+| Orchestration | **Argo Workflows** (replaces Step Functions) | lands in Phase 6 |
+| Auth | **Zitadel** self-hosted in-cluster (replaces Cognito) | **Phase 6 only** (single-user in Phases 2–5 uses `MOCK_USER` header) |
+| Ingress | **Kong** | **Phase 6 only** (Phase 5 exposes the orchestrator directly) |
+| Secrets | **External Secrets Operator → AWS Secrets Manager** | **Phase 6 only** (Phase 5 puts secrets in `.env` / k8s Secret literals) |
+| Observability | **PLG stack** in-cluster (Prometheus, Grafana, Loki, Tempo) | **Phase 6 only** |
+| Vector store (RAG) | **Qdrant** | Phase 4 (Docker) → Phase 5/6 (k8s) |
+| Embedding model | **Bedrock Titan Embeddings v2** via LiteLLM | unchanged |
+| RAG scope (v1) | **Platform data + Strata's own `docs/`** | unchanged |
+| RAG ingestion | **Periodic pull** via `rag-indexer` Go service (60s cadence) | unchanged |
+| Reranking | **None** for v1 | unchanged |
+| Retriever auth | **API key** in k8s Secret | Phase 4: `.env`; Phase 5+: k8s Secret |
+| RAG access pattern | **All retrieval goes through `retriever-service`** | unchanged |
 
-### From Session 2 (new — RAG)
+### From Session 3 (new)
 
-| Question | Decision |
-|---|---|
-| RAG scope (v1) | **Platform data + Strata's own `docs/`** (Flavors A + B). Logs/incidents (Flavor C) deferred. |
-| Embedding model | **Bedrock Titan Embeddings v2** via LiteLLM (`bedrock/amazon.titan-embed-text-v2:0`, 1024-dim) |
-| Vector store | **Qdrant** sidecar (single replica, 20Gi PVC, S3 snapshot backup) |
-| Docs source | **Strata's own `docs/` directory** — plus curated excerpts of ArgoCD / EKS / AWS troubleshooting |
-| RAG ingestion | **Periodic pull** via `rag-indexer` Go service (60s cadence) for v1; event-driven deferred |
-| Reranking | **None** for v1 — add only if measured recall is low |
-| Retriever auth | **API key** in k8s Secret, internal ClusterIP service |
-| RAG access pattern | **All retrieval goes through `retriever-service`**. Only `retriever-service` and `rag-indexer` may talk to Qdrant directly. |
+| Question | Decision | Why |
+|---|---|---|
+| Build order | **Agent first, infrastructure second.** Phase 2 = working LangGraph agent against mocked tools. Real EKS/AWS in Phase 5. | User wants to *learn* LangGraph and RAG deeply. The agent loop is the subject; AWS is the carrier. Building infra first delays the actual learning by months. |
+| Initial scope | **Single-user, single-cluster, single AWS account (yours).** Multi-tenant SaaS deferred to Phase 6. | Evenings/weekends budget. Real multi-tenant SaaS is 3–5× the work. |
+| Primary interface | **Python CLI (Typer)** — `strata cluster list`, `strata cluster create`, `strata chat`. Web UI is for demos only. | CLI is a native fit for a k8s/AWS user. Bypasses frontend debugging. |
+| Web frontend | **Next.js 15 (App Router).** Replaces TanStack Start. | User said TanStack is unfathomable. Next.js is debuggable. |
+| Mobile frontend | **Deferred.** Expo scaffolded in a later phase if/when web+CLI+API are stable. | Mobile is the highest-effort, lowest-learning surface for an agentic-AI project. |
+| Doc ownership | **Comprehensive AI-authored, user-reviewed.** `docs/` contains full reference docs for langchain, langgraph, litellm, rag, bedrock, nextjs, plus the project-specific agent-architecture. The user reviews and edits; the AI writes the first draft. | The user wanted comprehensive coverage of the entire stack upfront, rather than learning-by-writing. The user remains the editor; future edits go through their review. |
+| AWS access flow (Phase 5) | **Direct creds in `.env`** (single-user, your own AWS account). No STS, no external ID. | Phases 2–4 are docker-only. Phase 5 is single-user. Cross-account role model lands in Phase 6. |
+| AWS access flow (Phase 6) | **Cross-account IAM role only** (CFN onboarding wizard). | No creds in browser; the existing `strata-platform-provisioner` model. |
+| Argo Workflows in Phase 5 | **No.** Phase 5 uses a Go orchestrator-triggered goroutine to drive provision/deprovision. Argo Workflows land in Phase 6. | Cuts a huge piece of Phase 5. The goroutine is fine for one user. |
+| Confirmation UX | **Mutation tools still require user confirmation**, but the gate is "always allow" until the web UI's `<ToolCallCard />` lands in Phase 6. | Defer the UI work until we actually have multi-user. |
+
+### Deprecated / changed
+
+- ~~TanStack Start (web) + Expo (mobile)~~ → **Next.js 15 (web) + Expo (deferred) + Typer CLI (primary)**
+- ~~10 phases, build infra first, agent last~~ → **6 phases, build agent first, infra second**
+- ~~Multi-tenant SaaS from day 1 (Zitadel, CFN, quotas)~~ → **Single-user first, multi-tenant in Phase 6**
+- ~~Phase 2 = bootstrap Strata-prod EKS~~ → **Phase 2 = agent sandbox; bootstrap EKS is Phase 5**
 
 ---
 
-## Phase Status
+## Phase Status (re-numbered)
 
 - [x] **Documentation**
-  - [x] AGENTS.md rewritten with full plan (12 sections + RAG §6.5)
+  - [x] AGENTS.md rewritten (Sessions 1, 2, 3)
   - [x] handoff.md created and being maintained
-  - [x] README.md rewritten from scratch (architecture, status, API, how-it-works, stack)
+  - [x] README.md (rewritten in Session 3 to match new positioning)
 - [x] **Phase 0 — Delete dead code** ✅
   - Deleted: `flutter_app/`, `mobileviews/`, `sampleclientapp/`, `infra_diagram.html`, `infra/`, `lambdas/`, `buildspec.yml`, `onboarding_cfn.yaml`
   - Created: `onboarding/strata-platform-role.yaml` (cross-account role moved here, `AdministratorAccess` scoped down to explicit `eks:*`/`ec2:*`/narrow `iam:*`)
@@ -65,29 +75,30 @@
   - Renamed: `sample-app/helm/accio-chart/` → `sample-app/helm/strata-chart/`
   - Renamed: `sample-app/accio-kind.yaml` → `sample-app/strata-kind.yaml`
   - Renamed: `specs/accio_master_doc.md` → `specs/strata_master_doc.md`
-  - Updated: `Chart.yaml` name `strata-chart`; `name: strata-portal-ui` in `package.json`
-  - Updated: helm helpers (`accio.*` → `strata.*`)
-  - Updated: 5× `go.mod` (`github.com/accio/X` → `github.com/strata/X`)
-  - Updated: 5× `main.go` DSN strings + 5× `k8s/base/services/*.yaml` DSN strings
-  - Updated: `Tiltfile`, `index.html`, `auth-api.js`, CI workflows (path filter fixed, ECR prefix, names), `sample-app/AGENTS.md`, `specs/strata_master_doc.md`
+  - Updated: `Chart.yaml`, `package.json`, helm helpers, 5× `go.mod`, 5× `main.go` DSN strings, 5× k8s DSN strings, `Tiltfile`, `index.html`, `auth-api.js`, CI workflows, `sample-app/AGENTS.md`, `specs/strata_master_doc.md`
   - Verification: clean
 - [x] **RAG plan** ✅ (Session 2)
   - Qdrant chosen as vector store (over pgvector)
   - Bedrock Titan v2 via LiteLLM chosen as embedding model
   - Platform data + Strata docs in scope for v1
   - `retriever-service` and `rag-indexer` Go services added to Phase 4 plan
-  - `retrieve_docs` LangChain tool added to Phase 6 plan
-  - Qdrant subchart added to Phase 3 plan
-  - Cross-cutting rule added: RAG goes through retriever-service
-- [ ] **Phase 2 — Bootstrap control-plane EKS** — next session
-- [ ] **Phase 3 — Helm umbrella chart** — pending (now includes Qdrant)
-- [ ] **Phase 4 — Go services** — pending (now includes retriever-service + rag-indexer)
-- [ ] **Phase 5 — Argo Workflow templates** — pending
-- [ ] **Phase 6 — `agent-service` (LangGraph + LangChain + LiteLLM)** — pending (now includes `retrieve_docs` tool)
-- [ ] **Phase 7 — `web/` (TanStack Start)** — pending
-- [ ] **Phase 8 — `mobile/` (Expo)** — pending
-- [ ] **Phase 9 — End-to-end verification** — pending
-- [ ] **Phase 10 — Polish + CI hardening** — pending
+  - `retrieve_docs` LangChain tool wired into Phase 4 (moved from Phase 6)
+  - Cross-cutting rule: RAG goes through `retriever-service`
+- [x] **Session 3 re-plan** ✅
+  - Agent-first ordering, single-user scope, Next.js + CLI, evenings/weekends cadence
+  - AGENTS.md re-numbered to 6 phases; §3, §4, §6.5, §7, §8, §9, §10, §11 updated
+  - handoff.md updated (this file)
+  - README.md rewritten to match new positioning
+- [ ] **Phase 2 — Agent sandbox** — **NEXT**
+  - `services/agent-service/` (Python, FastAPI, LangGraph, LangChain, LiteLLM)
+  - 5 mocked tools, NDJSON streaming, pytest
+  - `docs/langgraph-tools.md` (superseded in Session 5 by `docs/langgraph.md`)
+  - `docs/strata/agent-architecture.md`
+- [ ] **Phase 3 — Smallest real backend** — pending
+- [ ] **Phase 4 — RAG end-to-end** — pending
+- [ ] **Phase 5 — Real EKS + bootstrap cluster + Next.js + CLI** — pending
+- [ ] **Phase 6 — SaaS layer (Zitadel, CFN, Kong, Argo, ESO, PLG)** — pending
+- [ ] **Phase 7+ — Mobile (Expo)** — pending (deferred)
 
 ---
 
@@ -95,119 +106,214 @@
 
 | Method | Path | Owner service | Purpose |
 |---|---|---|---|
-| POST | `/clusters` | orchestrator | Provision a new cluster. Kicks Argo Workflow. |
+| POST | `/clusters` | orchestrator | Provision a new cluster. Kicks Argo Workflow (Phase 6+; Phase 5 uses a goroutine). |
 | GET | `/clusters` | orchestrator | List user's clusters. |
 | GET | `/clusters/{id}` | orchestrator | Fast status poll. |
 | DELETE | `/clusters/{id}` | orchestrator | Deprovision. Kills Argo Workflow if running, then runs `deprovision-cluster`. |
 | GET | `/dashboard/summary` | orchestrator | Aggregate counts by status. |
-| POST | `/agent/chat` | agent-service | Streamed chat with the Co-Pilot (SSE). |
+| POST | `/agent/chat` | agent-service | Streamed chat with the Co-Pilot. NDJSON in Phase 2–4, SSE in Phase 5+ when the web UI needs it. |
 | PUT | `/users/me/github-token` | orchestrator | Persist GitHub token (used for ops-repo access). |
 
 Internal (not exposed via Kong):
-- `PATCH /internal/clusters/{id}/status` — called by Argo Workflows
-- `POST /internal/onboarding/verify` — STS assume-role verification
-
-`retriever-service` is internal-only (ClusterIP, not Kong-exposed):
-- `POST /retrieve` — embed + vector search + return chunks
-- `POST /index` — embed + upsert
-- `DELETE /index/{collection}/{id}` — delete chunk
-- `GET /healthz` — readiness/liveness
+- `PATCH /internal/clusters/{id}/status` — called by Argo Workflows (Phase 6+) or the orchestrator's goroutine (Phase 5) to update status.
+- `POST /internal/onboarding/verify` — STS assume-role verification helper. **Phase 6 only** (single-user in Phase 5, no cross-account role).
+- `POST /retrieve`, `POST /index`, `DELETE /index/{collection}/{id}` — `retriever-service`. Internal ClusterIP, called only by `agent-service` and `rag-indexer`.
 
 ---
 
-## Target Repo Layout (post-Phase 1, with RAG in mind)
+## Target Repo Layout (post-Phase 1, post-Session 3 re-plan)
 
 ```
 strata/
-├── AGENTS.md                # updated with RAG
+├── AGENTS.md                # source of truth (Sessions 1–3)
 ├── handoff.md               # this file
-├── README.md                # rewritten
+├── README.md                # rewritten in Session 3
 ├── onboarding/              # extracted from onboarding_cfn.yaml
 │   ├── README.md
 │   ├── strata-platform-role.yaml
 │   └── policies/
-├── .github/workflows/       # updated — path filter fixed
-├── sample-app/              # renamed/cleaned
+├── .github/workflows/       # path filters fixed in Phase 1
+├── sample-app/              # renamed/cleaned, runs locally
 │   ├── helm/strata-chart/
 │   ├── strata-kind.yaml
 │   ├── services/*/go.mod    # github.com/strata/X
-│   ├── services/portal-ui/  # name: strata-portal-ui
 │   └── ...
-├── specs/strata_master_doc.md
-├── specs/sample_app_architecture.md
-├── specs/archives/          # historical, untouched
-├── diagrams/                # stale PNGs; rewrite in Phase 7/9
+├── specs/
+│   ├── strata_master_doc.md
+│   ├── sample_app_architecture.md
+│   └── archives/            # historical, untouched
+├── diagrams/                # stale PNGs; rewrite later
 ├── terraform/aws/           # UNCHANGED — customer-side EKS module
-├── .gitignore
-└── (Phase 2+ folders not yet created)
-    # control-plane/
-    #   bootstrap/                          # Phase 2
-    #   helm/strata/
-    #     templates/
-    #       qdrant/                         # NEW (Phase 3)
-    #       retriever-service-deployment.yaml  # NEW (Phase 4)
-    #       rag-indexer-deployment.yaml     # NEW (Phase 4)
-    #   argocd-apps/
-    # services/
-    #   shared/                             # Go module
-    #   orchestrator/                       # Go
-    #   provisioner-worker/                 # Go
-    #   status-poller/                      # Go
-    #   argocd-sync/                        # Go
-    #   health-monitor/                     # Go
-    #   retriever-service/                  # Go (NEW)
-    #   rag-indexer/                        # Go (NEW)
-    #   agent-service/                      # Python
-    # workflows/
-    #   provision-cluster.yaml              # Phase 5
-    #   deprovision-cluster.yaml
-    #   reindex-docs.yaml                   # NEW (Phase 4+)
-    #   lib/
-    # docs/                                 # NEW (Phase 7+)
-    #   argo-cd/
-    #   eks/
-    #   strata/
-    # web/                                  # Phase 7
-    # mobile/                               # Phase 8
+├── docs/                    # NEW (Phase 4+) — comprehensive AI-authored, user-reviewed
+│   ├── langchain.md
+│   ├── langgraph.md
+│   ├── litellm.md
+│   ├── bedrock.md
+│   ├── rag.md
+│   ├── nextjs.md
+│   ├── strata/
+│   │   ├── agent-architecture.md
+│   │   └── control-plane.md         # Phase 5+
+│   ├── argo-cd/                     # Phase 4+ curated excerpts
+│   └── eks/                         # Phase 4+ curated excerpts
+├── services/                # NEW (Phase 2+)
+│   ├── shared/              # Go module
+│   ├── orchestrator/        # Go (Phase 3+)
+│   ├── provisioner-worker/  # Go (Phase 5+)
+│   ├── status-poller/       # Go (Phase 5+)
+│   ├── argocd-sync/         # Go (Phase 5+)
+│   ├── health-monitor/      # Go (Phase 5+)
+│   ├── retriever-service/   # Go (Phase 4+)
+│   ├── rag-indexer/         # Go (Phase 4+)
+│   └── agent-service/       # Python (Phase 2+)
+├── cli/                     # NEW (Phase 5) — Typer, primary interface
+├── web/                     # NEW (Phase 5) — Next.js 15, demo interface
+├── control-plane/           # NEW (Phase 5+)
+│   ├── bootstrap/           # Terraform for Strata-prod EKS
+│   ├── helm/strata/         # Umbrella Helm chart (Phase 6+)
+│   └── argocd-apps/
+├── workflows/               # Argo Workflow templates (Phase 6+)
+│   ├── provision-cluster.yaml
+│   ├── deprovision-cluster.yaml
+│   └── lib/
+├── docker-compose.yml       # NEW (Phase 3+) at repo root
+└── .gitignore
 ```
 
 ---
 
 ## Open Questions / Blockers
 
-None. All locked decisions are recorded in AGENTS.md §3 and §6.5.
+None. All locked decisions are recorded in AGENTS.md §3.
 
 ---
 
 ## Notes for the Next Session
 
-### Phase 2 (next) — `control-plane/bootstrap/`
+### Phase 2 (next) — Agent sandbox in Kind (`services/agent-service/` + k8s manifests)
 
-Goal: one-time Terraform that creates the **Strata-prod EKS** cluster.
+**Goal:** a working LangGraph agent you can talk to, that calls mocked tools, that you fully understand. **Everything runs in a local Kind cluster from day one.** No docker-compose, no EKS, no auth. Just k8s manifests, kind, kubectl port-forward, and curl.
 
-Files to create:
-- `control-plane/bootstrap/main.tf` — VPC (3 AZs, public + private subnets, NAT), EKS 1.29+ with managed node group, S3 bucket for TF state + DynamoDB lock table, KMS key, ACM cert
-- `control-plane/bootstrap/variables.tf`
-- `control-plane/bootstrap/outputs.tf` — cluster name, endpoint, kubeconfig command, IRSA role ARNs
-- `control-plane/bootstrap/providers.tf`
-- `control-plane/bootstrap/README.md`
+**Repo layout to create:**
 
-Decisions already made in AGENTS.md §3:
-- VPC: 3 AZs, public + private subnets, NAT
-- EKS: 1.29+ managed node group
-- State: S3 + DynamoDB lock
-- Encryption: KMS
-- IRSA roles for major workloads (LiteLLM, External Secrets, Argo). **RAG note:** add an IRSA role for `retriever-service` and `rag-indexer` if they need AWS access; they may not — Qdrant is in-cluster and embeddings go through LiteLLM. Add only if needed.
+```
+strata/
+├── strata-dev-kind.yaml                 # Kind cluster config (port mappings, registry)
+├── Makefile                             # kind-up / build / apply / chat / logs / kind-down
+├── control-plane/
+│   └── manifests/                       # raw k8s manifests, no Helm in Phase 2
+│       ├── 00-namespace.yaml
+│       ├── 10-litellm/
+│       │   ├── deployment.yaml
+│       │   ├── service.yaml             # ClusterIP:4000
+│       │   ├── configmap.yaml           # model list, AWS region
+│       │   └── secret.yaml.example      # AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY (gitignored)
+│       └── 20-agent-service/
+│           ├── deployment.yaml
+│           └── service.yaml             # NodePort:30800
+├── services/agent-service/
+│   ├── pyproject.toml                   # uv-managed
+│   ├── Dockerfile                       # python:3.12-slim, uv sync, uvicorn
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py                      # FastAPI, POST /chat streams NDJSON
+│   │   ├── graph.py                     # LangGraph state machine: think → tool_call → respond
+│   │   ├── state.py                     # typed state (messages, thread_id)
+│   │   ├── providers/
+│   │   │   ├── __init__.py
+│   │   │   └── litellm_provider.py      # calls http://litellm:4000/v1/chat/completions (in-cluster DNS)
+│   │   └── tools/
+│   │       ├── __init__.py
+│   │       ├── list_clusters.py         # @tool, returns Pydantic model
+│   │       ├── get_cluster_status.py
+│   │       ├── get_cluster_logs.py
+│   │       ├── provision_cluster.py
+│   │       └── delete_cluster.py
+│   ├── tests/
+│   │   ├── __init__.py
+│   │   ├── test_graph.py                # asserts correct tool called for given prompt
+│   │   └── test_tools.py                # tool schema/return shape sanity
+│   └── README.md                        # how to run, how to add a tool
+└── docs/
+    ├── langgraph-tools.md               # AI-written; user reviews
+    └── strata/
+        └── agent-architecture.md        # AI-written; user reviews
+```
+
+**Graph (Phase 2, minimal):** three nodes.
+1. `think` — calls LiteLLM with the current message history. If the response includes `tool_calls`, route to `tool_call`. Otherwise, route to `respond`.
+2. `tool_call` — invokes the named tool (mocked), appends a `ToolMessage` to state, routes back to `think`.
+3. `respond` — terminal; emits the assistant's final text to the NDJSON stream.
+
+No checkpointer, no confirmation flow, no RAG node. Pure in-memory state.
+
+**Tools (Phase 2, all mocked):**
+- `list_clusters` — returns `[{id, name, status, region, k8s_version}]` (3 hardcoded rows)
+- `get_cluster_status(id)` — returns `{id, status, last_updated, ...}` (depends on id)
+- `get_cluster_logs(id, since)` — returns `["log line 1", "log line 2", ...]` (hardcoded)
+- `provision_cluster(name, region, k8s_version)` — returns `{id, status: "INITIATED"}`
+- `delete_cluster(id)` — returns `{id, status: "DELETING"}`
+
+Each is `@tool`-decorated, returns a Pydantic model. Tool descriptions matter — they're what the LLM sees.
+
+**Streaming:** NDJSON, one JSON object per line:
+```json
+{"type": "token", "text": "..."}
+{"type": "tool_call", "name": "list_clusters", "args": {}}
+{"type": "tool_result", "name": "list_clusters", "result": [...]}
+{"type": "done"}
+```
+
+**Tests (pytest) — minimum bar:**
+1. Given prompt "list my clusters", the graph calls the `list_clusters` tool.
+2. After the tool result, the next LLM call includes the tool result in its message history.
+3. The streaming endpoint emits exactly one `{"type": "done"}`.
+
+**Docs to write (the user reviews and edits; AI generates the first draft):**
+- `docs/langgraph-tools.md` — explain the state machine, the `messages` reducer, AI vs Tool messages, how `@tool` decoration surfaces as JSON schema to the LLM.
+- `docs/strata/agent-architecture.md` — Mermaid diagram of the loop.
+
+**LiteLLM (in-cluster, not on laptop):**
+- Deployed as a Deployment in the `strata` namespace, listens on `:4000`.
+- Configured with Bedrock models via env vars: `bedrock/amazon.nova-pro-v1:0` (chat) and `bedrock/amazon.titan-embed-text-v2:0` (embed, for Phase 4).
+- AWS creds come from a k8s Secret — **not IRSA** because IRSA only works on real EKS, not Kind. `secret.yaml.example` is committed; the real `secret.yaml` is gitignored.
+
+**Dev loop (no docker-compose):**
+```bash
+make kind-up       # create Kind cluster with port mappings, start local registry
+make build         # build agent-service image, push to localhost:5000
+make apply         # kubectl apply -f control-plane/manifests/
+make chat          # port-forward + curl /chat
+make logs-agent    # tail agent-service logs
+make kind-down     # delete the dev cluster
+```
+
+The same k8s manifests will deploy to EKS in Phase 5 (with IRSA instead of a k8s Secret for AWS creds).
 
 ### Carryover gotchas
 
-- **`onboarding/strata-platform-role.yaml`** uses `StrataProvisionerRoleName` and `StrataReaderRoleName` parameters. Defaults are `strata-provisioner-worker` and `strata-status-poller` — these are the IRSA role names the bootstrap Terraform will create. Update the defaults if you pick different names.
-- **The diagrams in `diagrams/`** are stale (depict the old serverless architecture). The README no longer references them. Don't delete them — they're not in the dead-code list; rewriting is a Phase 7/9 task.
-- **CI workflow path filters** are correct (`sample-app/services/*-service/**`). Until new `web/`, `mobile/`, and `services/` directories are created, the existing two CI workflows cover what we have.
-- **Sample app's `auth-service`** (in `sample-app/services/auth-service/`) was NOT deleted in Phase 0. It's a sample-app-internal auth using Dex and a hardcoded JWT secret. It's separate from the Strata control plane's Zitadel auth. Leave it for now; clean up when `web/` is built (the new `web/` replaces `portal-ui` which currently uses this auth).
-- **RAG prerequisites for Phase 3:** the LiteLLM config map in `control-plane/helm/strata/values.yaml` must enable `bedrock/amazon.titan-embed-text-v2:0` as an embedding model, not just chat. IRSA for the LiteLLM pod needs `bedrock:InvokeModel` for the embedding model ARN. Flag this in the bootstrap IAM planning.
-- **Qdrant in Phase 3:** single replica, 20Gi PVC, S3 snapshot CronJob. Disable anonymous access; create an API key Secret and wire it into `retriever-service` and `rag-indexer`.
-- **`docs/` directory for Phase 7+:** when you create it, structure it as `docs/{argo-cd,eks,strata}/` with markdown files. Initial set: 1 architecture doc, 1 onboarding doc, 1-2 ArgoCD troubleshooting excerpts. Don't over-invest; the rag-indexer workflow will pick it up.
+- **`uv` is the package manager**, not pip. Use `uv sync` and `uv run pytest` inside the agent container for tests; `uv` outside for local iteration.
+- **Local registry is required.** Kind can't pull from Docker Hub by default; you build and push to `localhost:5000`. The `strata-dev-kind.yaml` patches `imageRepository` so Kind nodes can pull from the local registry.
+- **Do NOT add a checkpointer in Phase 2.** A common LangGraph tutorial trap. The graph holds state in memory for the duration of one HTTP request; that's enough.
+- **Do NOT add a confirmation node in Phase 2.** That lands with the web UI in Phase 5/6.
+- **Tools MUST be Pydantic models**, not raw dicts. This forces schema generation that the LLM can read.
+- **The "what's a chunk?" question is for Phase 4.** Don't pre-optimize for RAG in Phase 2.
+- **AWS creds in a k8s Secret are fine for Phase 2/5** but they get rotated to IRSA when you move to EKS in Phase 5. The secret layout should make that swap easy (single `aws-credentials` Secret, mounted as env vars).
+- **If you don't have Bedrock access**, swap the LiteLLM model in `configmap.yaml` to `gpt-4o-mini` or `claude-3-haiku-20240307` and put the API key in the secret. The architecture stays the same; only the `model_list` entry changes.
+
+### Definition of done for Phase 2
+
+- [ ] `strata-dev-kind.yaml` provisions a Kind cluster with port mappings `30000` and `30800`.
+- [ ] `control-plane/manifests/00-namespace.yaml` creates the `strata` namespace.
+- [ ] `control-plane/manifests/10-litellm/` deploys LiteLLM with a Bedrock-backed model list, reachable on `litellm:4000` in-cluster.
+- [ ] `control-plane/manifests/20-agent-service/` deploys `agent-service` on `NodePort:30800`.
+- [ ] `services/agent-service/` has the layout above; `Dockerfile` builds with `uv`.
+- [ ] `make kind-up && make build && make apply` brings the cluster up.
+- [ ] `make chat` (or `kubectl port-forward + curl`) reaches the agent and gets NDJSON back including a `tool_call` for `list_clusters` and a final `done`.
+- [ ] `uv run pytest` (run inside the agent container) is green for `test_graph.py` and `test_tools.py`.
+- [ ] `docs/langgraph-tools.md` exists.
+- [ ] `docs/strata/agent-architecture.md` exists with a Mermaid diagram.
+- [ ] handoff.md updated with phase-complete status.
 
 ---
 
@@ -228,24 +334,97 @@ Decisions already made in AGENTS.md §3:
 - User asked about adding RAG.
 - Analyzed RAG options (vector store, embedding model, scope, ingestion pattern).
 - User chose: Qdrant + Bedrock Titan v2 + platform data + own docs.
+- Updated AGENTS.md (architecture diagram, locked decisions, cross-cutting rules, §6.5 RAG overview, phase plans, phase status).
+- Updated handoff.md (locked decisions, phase status, target repo layout, next-session notes).
+
+### 2026-06-10 — Session 3 (this session)
+- User opened with a candid summary of constraints: knows AWS/k8s deeply, knows nothing about LangGraph/LangChain/RAG/Bedrock, can't fathom debugging TanStack. Asked for a re-plan.
+- Asked 4 sets of questions, got clear answers:
+  - **Goal:** portfolio / demo piece.
+  - **Frontend:** Next.js (debuggable) + CLI (primary).
+  - **Production scope:** real multi-tenant SaaS.
+  - **Time budget:** evenings / weekends only.
+  - **Resolution:** downscope to single-user first.
+  - **Agentic depth:** learn LangGraph deeply (build agent against mocked tools first).
+  - **Phase 2 = agent sandbox** (not bootstrap EKS).
+  - **Phase 5 = single-user, your own AWS account** (no cross-account role).
+  - **Docs:** (superseded in Session 5) — was "user writes the *why*, AI writes the *what*". Now: comprehensive AI-authored, user-reviewed.
+- Updated AGENTS.md: §3 (locked decisions — added product-shape decisions, swapped TanStack→Next.js, added CLI as primary interface, added single-user-first principle, added doc ownership rule); §4 (re-numbered to 6 phases, agent-first); §6.5 (RAG phase references adjusted); §7 (rewrote "What's Coming" for new ordering); §8 (API surface — clarified phase 5 goroutine, added retriever-service endpoints); §9 (naming — added CLI); §10 (cross-cutting rules — added agent-first, CLI-first, doc ownership); §11 (commands — added uv, pnpm, CLI entry points).
+- Updated handoff.md (this file): reset phase status, new Session 3 locked decisions, deprecated/changed section, target repo layout, next-session notes for Phase 2 (agent sandbox).
+- Will rewrite README.md to match new positioning.
+
+**Carryover to next session (superseded by Sessions 4 and 5):**
+- Start Phase 2: agent sandbox at `services/agent-service/`.
+- Lay out the directory and write the agent loop end-to-end against mocked tools.
+- Run LiteLLM locally on the laptop; no Docker.
+- AI writes `docs/langgraph-tools.md`; the user reviews and edits.
+- AI writes `docs/strata/agent-architecture.md`; the user reviews and edits.
+- When Phase 2 lands, update this handoff with phase-complete status.
+
+### 2026-06-10 — Session 4 (k8s manifests from start)
+- User asked for one change: k8s manifests from the start, no docker-compose.
+- Confirmed: Phase 2 = agent + LiteLLM, both deployed to a local Kind cluster, both accessed via `kubectl port-forward`. The mocked tools stay mocked; only the *runtime* moves to k8s. LiteLLM proxies to Bedrock via real AWS creds in a k8s Secret (no IRSA in Kind).
 - Updated AGENTS.md:
-  - Architecture diagram (added `retriever-service`, `rag-indexer`, Qdrant)
-  - Locked decisions table (added 6 RAG rows)
-  - Cross-cutting rules (added 2 RAG rules)
-  - New section §6.5 (RAG overview, components, scope, cross-cutting rule)
-  - Phase 3 (added Qdrant to Helm chart)
-  - Phase 4 (added `retriever-service`, `rag-indexer`; updated `shared/` Go module description)
-  - Phase 6 (added `retrieve_docs` tool)
-  - Phase status: 0 and 1 marked DONE
-- Updated handoff.md (this file):
-  - Locked decisions table (added RAG section)
-  - Phase status (added RAG plan complete)
-  - Target repo layout (added RAG components and `docs/` directory)
-  - Notes for next session (added RAG gotchas for Phase 3/4/7)
+  - §4 Phase 2 row now reads "Agent sandbox in Kind" with "k8s manifests in a local Kind cluster" and "no docker-compose, no EKS — Kind is the dev target"
+  - §7 Phase 2 details rewritten with the new directory tree (`control-plane/manifests/`, `strata-dev-kind.yaml`, `Makefile`, Dockerfile for the agent)
+  - §10 cross-cutting rules: added "No docker-compose for the platform"
+  - §11 commands: replaced laptop-based uv commands with `make kind-up / build / apply / chat / logs-agent / kind-down`
+- Updated handoff.md: Phase 2 next-session section rewritten with k8s layout, port-forward-based chat access, in-cluster LiteLLM deployment, and a k8s-flavored "definition of done" checklist.
+- Updated README.md: "What's coming" line and Phase 2 row mention Kind; local-dev paragraph now describes `make` targets instead of `uv run` and `docker-compose`.
+- Will scaffold Phase 2: `control-plane/`, `strata-dev-kind.yaml`, `Makefile`, `services/agent-service/`, manifests, and the Phase 2 docs (later superseded in Session 5).
+
+**Carryover to next session (superseded by Session 5):**
+- Phase 2 scaffold is in flight. Once complete, run `make kind-up && make build && make apply` to bring it up.
+- The first end-to-end check is `make chat` (port-forward + curl) returning NDJSON with a `tool_call` for `list_clusters` and a final `done`.
+- `docs/langgraph-tools.md` and `docs/strata/agent-architecture.md` are now AI-authored comprehensive refs (Session 5). The user reviews and edits.
+
+### 2026-06-10 — Session 5 (comprehensive docs)
+
+**Trigger:** User changed their mind on the "user writes the *why*,
+AI writes the *what*" approach. Asked for the AI to produce
+comprehensive docs covering the entire stack — langchain, langgraph,
+litellm, rag, bedrock, nextjs — basics, advanced, and anything
+needed for the project.
+
+**What changed:**
+
+- Dropped the "stubs for the user to fill in" approach. The
+  previous Session 4 carryover said `docs/langgraph-tools.md` and
+  `docs/strata/agent-architecture.md` were the user's writing;
+  the user said no — make them as comprehensive as possible.
+- Replaced the two stub docs with a full `docs/` tree of
+  comprehensive references:
+
+  | File | Lines | Topic |
+  |---|---|---|
+  | `docs/README.md` | index | learning order, by topic, companion docs |
+  | `docs/langchain.md` | ~370 | chat models, messages, tools, runnables, output parsers, pitfalls |
+  | `docs/langgraph.md` | ~380 | StateGraph, reducers, ToolNode, conditional edges, checkpointers, streaming, debug |
+  | `docs/litellm.md` | ~330 | model_list, embeddings, retries, fallbacks, master key, virtual keys, provider swap |
+  | `docs/bedrock.md` | ~390 | Nova Pro, Titan v2, SigV4, regions, IAM, Converse API, streaming, throttling, cost |
+  | `docs/rag.md` | ~430 | Qdrant collections, retriever-service API, retrieve node, ingestion, chunking, metadata filtering, hybrid search, degraded mode |
+  | `docs/nextjs.md` | ~430 | App Router, server components, server actions, streaming tokens, auth, forms, Tailwind, shadcn/ui, pnpm |
+  | `docs/strata/agent-architecture.md` | ~340 | the project-specific graph, services, k8s surface, NDJSON wire format, what's deferred |
+
+- Updated `AGENTS.md`:
+  - §3 locked decisions: replaced "you write the *why*, AI writes
+    the *what*" with "comprehensive AI-authored, user-reviewed"
+  - §10 cross-cutting rules: replaced the doc-ownership rule
+    with the new "comprehensive AI-authored docs" + "hand-written
+    learning notes welcome" rules
+- Updated `handoff.md` (this file): changed the Session 3 locked
+  decision on doc ownership, added this Session 5 entry.
 
 **Carryover to next session:**
-- Start Phase 2: `control-plane/bootstrap/`.
-- If user wants a different node group size, VPC CIDR, or EKS version, confirm before writing `main.tf`.
-- Remember: when Phase 3 lands, the LiteLLM config must enable Bedrock Titan v2 as an *embedding* model, not just chat. IRSA for LiteLLM needs `bedrock:InvokeModel` for the embedding model.
-- When Phase 3 lands, add a Qdrant subchart with API key auth, 20Gi PVC, S3 snapshot CronJob.
-- Update this handoff with phase-complete status when Phase 2 lands.
+
+- Phase 2 code is in place; `pytest` is green (11/11); ruff is
+  clean; k8s manifests validate with `kubectl apply --dry-run`.
+- Run `cp control-plane/manifests/10-litellm/secret.yaml.example
+  control-plane/manifests/10-litellm/secret.yaml`, fill in AWS
+  creds, then `make kind-up && make build && make apply && make chat`.
+- When Phase 2 lands end-to-end in the cluster, mark it
+  phase-complete in this handoff and start Phase 3.
+- The docs are now full references. The user will review and
+  edit; future updates should follow the same comprehensive
+  style. Hand-written "What I learned the hard way" sections
+  are welcome in any doc.
