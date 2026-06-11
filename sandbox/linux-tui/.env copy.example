@@ -1,0 +1,11 @@
+# MiniMax (OpenAI-compatible) — required
+MINIMAX_BASE_URL=https://api.minimax.chat/v1
+MINIMAX_API_KEY=your-minimax-api-key
+MINIMAX_MODEL=MiniMax-M3
+
+# Model behavior (optional)
+TEMPERATURE=0.2
+MAX_TOKENS=2048
+
+# Misc
+LOG_LEVEL=INFO
