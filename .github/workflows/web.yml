@@ -1,0 +1,17 @@
+name: Web CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/web.yml'
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Web lands in Phase 2 (placeholder CI)
+        run: echo "web CI lands in Phase 2"

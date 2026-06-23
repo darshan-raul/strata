@@ -1,21 +1,52 @@
-*/.terraform
-*/lambda.zip
-**/node_modules
-**/__pycache__
-**/.venv
-**/.pytest_cache
-**/.ruff_cache
-**/*.pyc
+# Python
+**/__pycache__/
+**/*.py[cod]
 **/*.pyo
+**/.pytest_cache/
+**/.ruff_cache/
+**/.venv/
+**/.mypy_cache/
+
+# Node / pnpm
+**/node_modules/
+**/.next/
+**/.turbo/
+**/dist/
+**/.pnpm-store/
+
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.backup
+**/.terraform.lock.hcl
+
+# uv / Python tooling
+**/uv.lock
+!tui/uv.lock
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Env / secrets
 **/.env
+**/.env.local
+!**/.env.example
 
-# Strata control-plane: real k8s Secret for AWS creds (committed as .example only)
-control-plane/manifests/10-litellm/secret.yaml
+# Build artifacts
+**/target/
+**/*.egg-info/
+**/build/
 
-# Strata agent-service: uv-managed virtualenv + IDE noise
-services/agent-service/.venv
-services/agent-service/.pytest_cache
-services/agent-service/.ruff_cache
-services/agent-service/app/__pycache__
-services/agent-service/tests/__pycache__
-services/agent-service/**/*.egg-info
+# Coverage / test artifacts
+**/coverage/
+**/.coverage
+**/htmlcov/
+
+# Logs
+**/*.log
+
+# Personal scratchpad (canonical versions live in docs/)
+/notes/
